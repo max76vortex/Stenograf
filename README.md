@@ -65,6 +65,14 @@ N8N-projects/
 
 ---
 
+## Журнал активности и отчёты по времени
+
+- Журнал: `memory-bank/activity-journal.md` (ISO-время, источник: Manual / GitCommit / Scheduled).
+- Дописать строку: `pwsh -NoLogo -File "scripts/append-activity-journal.ps1" -Message "..."`.
+- Сводка в консоль: `pwsh -NoLogo -File "scripts/Get-ActivityReport.ps1"`.
+- После каждого коммита (опционально): `git config core.hooksPath .githooks` — см. `scripts/README.md`.
+- Скилл агента: **workspace-activity-report** (отчёт по запросу из журнала + git).
+
 ## Мультиагентная система (MAS)
 
 **MAS** — сокращение для каталога **`multi-agent-system/`** (Multi-Agent System).

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Git hook: append one line to activity journal after each commit.
+# Enable: git config core.hooksPath .githooks
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 0
+SUBJECT="$(git log -1 --pretty=%s)"
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoLogo -ExecutionPolicy Bypass -File "$ROOT/scripts/append-activity-journal.ps1" \
+    -Message "git commit: $SUBJECT" \
+    -Source GitCommit
+fi
