@@ -153,6 +153,7 @@ pwsh -NoLogo -File "multi-agent-system/tools/orchestrator-preflight.ps1"
 
 ## Быстрый чеклист на каждый новый проект
 
+- [ ] Если предыдущий прогон закрыт и нужен **чистый** `current-run/` + новый slug: выполнить `multi-agent-system/tools/mas-new-run.ps1 -MasProjectId "<slug>"` (скилл **mas-clean-start**) или вручную по `current-run/README.md`
 - [ ] Заполнить `current-run/task_brief.md`
 - [ ] Заполнить `current-run/project_context.md` и строчку **`MAS Project ID`** (slug для архива)
 - [ ] Убедиться, что предыдущий run закрыт или осознанно сброшен

@@ -81,6 +81,16 @@ pwsh -NoLogo -File "multi-agent-system/tools/dryrun-status.ps1" -Top 10
 pwsh -NoLogo -File "multi-agent-system/tools/orchestrator-preflight.ps1"
 ```
 
+### Чистый старт для нового прогона (новый `MAS Project ID`)
+
+После архивации завершённого прогона или чтобы сбросить `current-run/` и `status.md` под новую задачу:
+
+```powershell
+pwsh -NoLogo -File "multi-agent-system/tools/mas-new-run.ps1" -MasProjectId "your-new-slug"
+```
+
+Скрипт по умолчанию делает снимок `current-run/` в `archive/mas-snapshots/`, затем очищает артефакты и пишет заготовки. Подробности: скилл **mas-clean-start** (`.cursor/skills/mas-clean-start/SKILL.md`). Просмотр без изменений: добавьте `-WhatIf -Force`.
+
 Подробности по интерпретации отчета: `multi-agent-system/runbooks/status-surface-runbook.md`.
 
 Запуск оркестратора (из корня workspace; по умолчанию читаются `current-run/task_brief.md` и `current-run/project_context.md`):
