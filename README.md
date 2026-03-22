@@ -73,6 +73,11 @@ N8N-projects/
 - После каждого коммита (опционально): `git config core.hooksPath .githooks` — см. `scripts/README.md`.
 - Скилл агента: **workspace-activity-report** (отчёт по запросу из журнала + git).
 
+### Инициализация в новом проекте
+
+- Скилл **memory-bank-init** (`.cursor/skills/memory-bank-init/SKILL.md`): Memory Bank 2.0 + реестр `WS-NNN` + опционально журнал активности; переносимые шаблоны в **`memory-bank/bootstrap/`**.
+- Что вставить в **глобальные** User Rules Cursor: **`memory-bank/bootstrap/GLOBAL-CURSOR-SETUP.md`**.
+
 ## Мультиагентная система (MAS)
 
 **MAS** — сокращение для каталога **`multi-agent-system/`** (Multi-Agent System).
