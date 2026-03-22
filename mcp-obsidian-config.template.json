@@ -1,0 +1,16 @@
+{
+  "$comment": "Шаблон конфигурации MCP-сервера Obsidian для Cursor. Этот файл НЕ используется Cursor напрямую, он только как образец. Поля и формат могут отличаться в зависимости от версии плагина Obsidian MCP, поэтому обязательно сверь с документацией/формой в Settings → MCP Servers.",
+  "serverIdentifier": "user-obsidian",
+  "serverName": "obsidian",
+  "connection": {
+    "type": "http",
+    "baseUrl": "http://localhost:27124"
+  },
+  "auth": {
+    "type": "apiKey",
+    "headerName": "x-api-key",
+    "envVar": "OBSIDIAN_MCP_API_KEY",
+    "placeholder": "ВСТАВЬ_СЮДА_СВОЙ_КЛЮЧ_ИЛИ_ИСПОЛЬЗУЙ_ENV"
+  },
+  "notes": "1) В Cursor открой Settings → MCP Servers → добавь/открой Obsidian.\n2) Используй этот файл как ориентир: адрес сервера, тип авторизации, имя env-переменной.\n3) Сам API-ключ лучше хранить в переменной окружения (OBSIDIAN_MCP_API_KEY), а не в явном виде в репозитории."
+}

@@ -1,0 +1,2 @@
+# Транскрибация аудио → Obsidian (faster-whisper, макс. качество)
+faster-whisper>=1.0.0

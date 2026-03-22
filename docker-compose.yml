@@ -1,0 +1,26 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    env_file: .env
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_HOST=n8n.maxvortex.ru
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://n8n.maxvortex.ru/
+      - N8N_PROXY_HOPS=1
+      - GENERIC_TIMEZONE=Europe/Moscow
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - n8n-net
+
+networks:
+  n8n-net:
+    driver: bridge
+
+volumes:
+  n8n_data:

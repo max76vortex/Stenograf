@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "obsidian-audio-brain": {
+      "command": "node",
+      "args": ["C:\\Users\\sa\\N8N-projects\\.cursor\\run-obsidian-audio-brain.js"]
+    }
+  }
+}
