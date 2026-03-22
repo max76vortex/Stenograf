@@ -6,6 +6,7 @@
 |----|-------|--------|---------|-----------|-------|
 | WS-001 | Журнал активности, скрипты, скилл workspace-activity-report, git hook | Done | 2026-03-22 | 2026-03-22 | commit `84fdb22`, `progress.md` |
 | WS-002 | Правила учёта задач: task-tracking.md + реестр | Done | 2026-03-22 | 2026-03-22 | `.cursor/rules/workspace-task-tracking.mdc` |
+| WS-003 | Скилл memory-bank-init + bootstrap шаблоны + GLOBAL-CURSOR-SETUP; правка глобального memory-bank.mdc | Done | 2026-03-22 | 2026-03-22 | `memory-bank/bootstrap/`, `.cursor/skills/memory-bank-init` |
 
 <!-- Новая задача: скопируй строку шаблона ниже, присвой следующий WS-NNN. -->
 
