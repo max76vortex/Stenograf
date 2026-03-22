@@ -9,3 +9,4 @@
 ## Entries
 
 - `2026-03-22T21:47:44.940+03:00` [Manual] Инициализация журнала: скрипты append/Get, skill workspace-activity-report, .githooks/post-commit
+- `2026-03-22T21:56:26.860+03:00` [Manual] WS-002: единая схема учёта задач (task-tracking, registry, cursor rule)

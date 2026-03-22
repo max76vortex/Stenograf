@@ -1,4 +1,7 @@
 # Tasks
+
+**Учёт задач workspace:** каждая значимая задача — ID **`WS-NNN`** и строка в **`memory-bank/task-registry.md`**; правила — **`memory-bank/task-tracking.md`**. В `progress.md` при закрытии указывай `[WS-NNN]`.
+
 ## Current Task
 - Status: IN_PROGRESS
 - Complexity: 3

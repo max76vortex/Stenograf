@@ -1,5 +1,10 @@
 # System Patterns
 
+## Учёт задач (весь workspace)
+
+- Источник истины по списку задач с ID: **`memory-bank/task-registry.md`** (`WS-001` …).
+- Правила, куда писать: **`memory-bank/task-tracking.md`** (реестр + `tasks.md` + `progress.md` + git + опционально `activity-journal.md`).
+
 ## Мультиагентная разработка
 
 - В workspace контур MAS: каталог `multi-agent-system/` (промпты ролей в `multi-agent-system/agents/`, артефакты в `current-run/`).
