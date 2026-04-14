@@ -2,7 +2,7 @@
 REM Пример запуска транскрибации за один месяц.
 REM Отредактируй пути RECORDINGS и INBOX под свой компьютер.
 
-set RECORDINGS=D:\recordings
+set RECORDINGS=D:\1 ЗАПИСИ ГОЛОС\recordings
 set INBOX=D:\Obsidian\Audio Brain\00_inbox
 set MONTH=2024-03
 

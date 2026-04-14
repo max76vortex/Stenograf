@@ -1,42 +1,50 @@
-# Project Context For Dry Run
+# Project Context
 
-**MAS Project ID:** `dry-run-system-status-surface`
+**MAS Project ID:** `audio-transcription-v1`
 
 ## Workspace
 
-- Name: `N8N-projects`
-- Current primary purpose: конфигурация и сопутствующие скрипты для `n8n`
-- Additional subsystem: локальный контур мультиагентной разработки варианта B
+- Name: N8N-projects (локальный репозиторий Cursor)
+- Repository root: `C:\Users\sa\N8N-projects`
 
-## Existing Structure
+## Описание проекта
 
-Key directories:
+Пользователь накопил большой объём аудиозаписей с диктофона (идеи, проекты, размышления). Нужен **устойчивый локальный пайплайн**: mp3 → текст → заметки в отдельном vault Obsidian (**Audio Brain**), без смешивания с остальными делами. Качество транскрибации — максимально доступное на домашнем ПК (faster-whisper **large-v3**, GPU). Постинг в блог/Ghost вынесен в **отдельную фазу** после появления готовых к публикации материалов.
 
-- `multi-agent-system/agents/` — роли мультиагентной системы
-- `multi-agent-system/` — артефакты, шаблоны, runbook'и
-- `memory-bank/` — долговременный контекст проекта
-- `transcription/` — отдельный рабочий поток транскрибации
-- `nginx/` — конфиги reverse proxy
+## Стек и ограничения
 
-## Existing Constraints
+- **Транскрибация:** Python 3.10+, `faster-whisper`, модель `large-v3`, `compute_type=float16`, `device=cuda` (или `cpu`).
+- **Obsidian:** vault `D:\Obsidian\Audio Brain\`; транскрипты пишутся в `00_inbox\`; шаблоны в `20_system/templates\`; инструкция по синку с Ghost — на будущее, не в scope текущего прогона.
+- **Связь с репозиторием:** код и документация в `transcription/`; Memory Bank в `memory-bank/` (tasks, creative, techContext, progress).
 
-- Нельзя ломать рабочий контур `n8n`.
-- Нельзя требовать тяжелую новую инфраструктуру ради dry run.
-- Dry run должен по возможности жить внутри `multi-agent-system/`.
-- На текущий момент Cursor CLI (`agent` / `cursor-agent`) не найден в `PATH`.
+## Структура репозитория (важное от корня)
 
-## Existing Multi-Agent Files
+| Путь | Назначение |
+|------|------------|
+| `transcription/transcribe_to_obsidian.py` | Основной скрипт: папка mp3 → папка .md |
+| `transcription/check_coverage.py` | Проверка: какие mp3 ещё без ожидаемого .md |
+| `transcription/requirements.txt` | Зависимость faster-whisper |
+| `transcription/README.md` | Порядок имён, примеры команд |
+| `transcription/SETUP.md` | Полная установка на ПК (драйвер, CUDA, Python, venv) |
+| `transcription/transcribe_month.bat` | Пример bat с путями (подправить под себя) |
+| `memory-bank/tasks.md` | План: Phase 1 транскрибация, Phase 2 постинг |
+| `memory-bank/creative/creative-transcription-workflow.md` | Дизайн порядка в папке записей и в 00_inbox |
+| `memory-bank/creative/creative-content-pipeline-and-ghost.md` | Ghost/Obsidian (фаза 2, справочно) |
+| `memory-bank/techContext.md` | Краткий техконтекст транскрибации |
+| `multi-agent-system/` | MAS: статус, current-run, агенты, runbooks |
 
-- Global status: `multi-agent-system/status.md`
-- Active artifacts: `multi-agent-system/current-run/`
-- Operator guidance: `multi-agent-system/runbooks/`
+## Папки на компьютере пользователя (примеры)
 
-## Dry Run Intent
+- Записи: `D:\1 ЗАПИСИ ГОЛОС\recordings\` с подпапками `YYYY-MM\`, имена mp3: `YYYY-MM-DD_NNN[_метка].mp3`.
+- Vault: `D:\Obsidian\Audio Brain\`, выход транскриптов: `00_inbox\`.
 
-Проверить, что система умеет:
+## Ссылки
 
-- принимать постановку задачи;
-- формировать ТЗ;
-- проводить ревью ТЗ;
-- строить архитектуру и план;
-- останавливаться на подтверждение пользователя после каждого крупного этапа.
+- Промпты ролей: `multi-agent-system/agents/`
+- Глобальный статус: `multi-agent-system/status.md`
+- Артефакты прогона: `multi-agent-system/current-run/`
+- Снимок предыдущего прогона MAS: `multi-agent-system/archive/mas-snapshots/2026-03-24_212219_audio-transcription-v1_previous/`
+
+## Правило slug для будущих прогонов MAS
+
+Для новых чистых стартов **`MasProjectId`** выбирается по смыслу задачи (kebab-case), например `audio-transcription-v1`, `ghost-sync-v2`; не использовать произвольные бессмысленные строки.

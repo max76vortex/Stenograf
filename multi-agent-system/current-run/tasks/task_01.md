@@ -1,74 +1,41 @@
-# Task 01: Расширенный статус из status.md (next step + confirmed stages)
+# Task 01: Окружение и smoke-тест транскрибации
 
 ## Goal
 
-- Закрыть **FR1** ТЗ: в отчёт CLI попадают глобальный статус, стадия, итерация, **следующий ожидаемый шаг** и **список подтверждённых пользователем этапов**, читаемые из `multi-agent-system/status.md`.
+Убедиться, что на машине поднимается Python-окружение с faster-whisper и что конвейер mp3 → `00_inbox` работает на 1–2 тестовых файлах.
 
 ## Related Use Cases
 
-- UC-01: Просмотр полного статуса процесса dry run.
+- UC-01 (установка), UC-02 (одна папка), UC-04 (check_coverage).
 
-## Changes
+## Steps (исполнитель: пользователь + опционально `run-smoke-test.ps1`)
 
-### New Files
-
-- (нет обязательных новых файлов; при выделении парсеров — опционально мелкие хелперы в том же `.psm1`)
-
-### Existing Files
-
-#### `multi-agent-system/tools/dryrun-status.internal.psm1`
-
-- Change: расширить модель (например поля `NextExpectedStep`, `ConfirmedStages` / строковый массив) и функции парсинга:
-  - из секции `## Orchestrator Step State` извлечь строку с `Next expected step` (или эквивалент по фактическому формату `status.md`);
-  - из секции `## Confirmed By User` собрать отмеченные пункты (`- [x] ...`).
-- New or updated symbols: `Get-SystemStateFromStatusFile` / новые хелперы секций; при необходимости обновить класс `SystemState`.
-- Expected behavior: при отсутствии секций или ключей — диагностика + значения `UNKNOWN` / пустой список без падения.
-
-#### `multi-agent-system/tools/dryrun-status.ps1`
-
-- Change: вывести новые поля в блоке `--- System State ---` (или отдельным подблоком в том же разделе отчёта).
-- Expected behavior: оператор видит next step и список подтверждений без чтения сырого markdown.
-
-## Integration Notes
-
-- Не менять формат `status.md` вручную ради задачи — только читать существующую структуру.
-- Сохранить совместимость с текущими полями `System State`.
-
-## Test Cases
-
-### End-To-End
-
-1. Scenario: полный `status.md` как в репозитории.
-   - Input: запуск `dryrun-status.ps1` с путями по умолчанию.
-   - Expected result: в выводе присутствуют непустые next step и список подтверждённых этапов (согласно файлу).
-
-2. Scenario: временный `status.md` без `## Orchestrator Step State`.
-   - Input: `-StatusFilePathOverride` на фикстуру.
-   - Expected result: скрипт завершается успешно; next step помечен как UNKNOWN или аналог; есть диагностика.
-
-### Unit Tests
-
-1. Scenario: парсинг `## Confirmed By User` с `[x]` и `[ ]`.
-   - Target: функции парсинга в модуле (через dot-source или импорт в тестовом скрипте).
-   - Expected result: только отмеченные `[x]` попадают в список.
-
-### Regression
-
-- Existing tests to run: `multi-agent-system/tools/task_04_tests.ps1` (после обновления под новый вывод — см. Task 04).
+1. Открыть PowerShell, перейти в `C:\Users\sa\N8N-projects\transcription`.
+2. `python -m venv .venv` (если ещё нет).
+3. `.\.venv\Scripts\Activate.ps1`
+4. `pip install -r requirements.txt`
+5. `python transcribe_to_obsidian.py --help` — без ошибок импорта.
+6. `python check_coverage.py --help` — без ошибок.
+7. Создать тестовую папку с 1–2 короткими mp3 (или скопировать из архива).
+8. Запустить:  
+   `python transcribe_to_obsidian.py "<путь_к_тестовым_mp3>" "D:\Obsidian\Audio Brain\00_inbox"`  
+   (путь к vault подставить свой, если другой).
+9. Проверить в Obsidian появление заметок и поле `audio_file` во frontmatter.
+10. `python check_coverage.py "<путь_к_тестовым_mp3>" "D:\Obsidian\Audio Brain\00_inbox"`
 
 ## Acceptance Criteria
 
-- [ ] Implementation complete
-- [ ] Next expected step и confirmed stages читаются из markdown, не захардкожены
-- [ ] Tests passed (ручной smoke + существующий тестовый скрипт после правок)
-- [ ] Documentation updated (Task 05 или ссылка на последующее обновление runbook)
+- [x] Шаги 5–6 проходят (`run-smoke-test.ps1` + ручной `--help`).
+- [x] После шага 8 в `00_inbox` есть `.md` с текстом транскрипта (автопрогон 2026-03-30: тестовый WAV в `transcription/test_smoke/` → `D:\Obsidian\Audio Brain\00_inbox`, для скорости `--model tiny --device cpu --ext .wav`; боевая схема: `large-v3` + `cuda` + `.mp3`).
+- [x] `check_coverage.py` не показывает MISSING для тестовых файлов.
 
-## Risks
+## Notes
 
-| Риск | Уровень | Примечание |
-| --- | --- | --- |
-| Секции переименованы в будущем | Низкий | Диагностика + UNKNOWN |
+- Первый полный прогон с загрузкой модели large-v3 может занять время и трафик; для `--help` модель не качается.
+- Если CUDA не установлена, для smoke можно временно `--device cpu` (медленнее).
 
-## Estimate
+## Status
 
-- S: 0.5–1 день.
+- [ ] Not started
+- [ ] In progress
+- [x] Done (smoke в vault подтверждён агентом; массовый прогон — `task_02.md`)

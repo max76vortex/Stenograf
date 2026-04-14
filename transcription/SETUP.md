@@ -9,11 +9,11 @@
 | Назначение | Путь (пример) |
 |------------|----------------|
 | **Проект (скрипт транскрибации)** | `C:\Users\sa\N8N-projects\transcription\` |
-| **Папка с записями mp3** | любой, рекомендуется например `D:\recordings\` с подпапками `2024-01`, `2024-02`, … |
+| **Папка с записями mp3** | `D:\1 ЗАПИСИ ГОЛОС\recordings\` с подпапками `2024-01`, `2024-02`, … |
 | **Vault Obsidian (Audio Brain)** | `D:\Obsidian\Audio Brain\` |
 | **Куда пишутся .md транскриптов** | `D:\Obsidian\Audio Brain\00_inbox\` |
 | **Виртуальное окружение Python** | `C:\Users\sa\N8N-projects\transcription\.venv\` |
-| **Манифест (лог обработанных)** | по желанию, например `D:\recordings\manifest.csv` |
+| **Манифест (лог обработанных)** | по желанию, например `D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv` |
 
 Связь «одно с другим»: ты один раз задаёшь пути в команде запуска: папка с mp3 → вход скрипта, `00_inbox` → выход. Скрипт ничего не «подключает» в настройках — только читает из одной папки и пишет в другую.
 
@@ -31,17 +31,20 @@
 - Проверка: открой «Диспетчер устройств» → «Видеоадаптеры» → NVIDIA RTX 3060 без жёлтого значка.
 - Обновить при необходимости: [nvidia.com/drivers](https://www.nvidia.com/drivers) — выбрать RTX 3060, скачать и установить.
 
-### 2.3. CUDA Toolkit (для работы на GPU)
+### 2.3. CUDA / GPU на Windows (без полного CUDA Toolkit)
 
-faster-whisper на GPU использует CUDA. Нужен установленный CUDA Toolkit.
+faster-whisper на GPU (через **ctranslate2**) ищет библиотеку **cuBLAS** (`cublas64_12.dll`). Полный **CUDA Toolkit** в `Program Files` не обязателен, если:
 
-- Скачать: [Developer NVIDIA — CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) (выбрать Windows, x86_64, версию 11 или 12).
-- Установить, оставив пути по умолчанию.
-- Проверка (после установки, в новом терминале):  
-  `nvcc --version`  
-  Должна вывестись версия. Если команда не найдена — добавить в PATH путь к `bin` внутри папки установки CUDA (например `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x\bin`).
+1. Установлен актуальный **драйвер NVIDIA** (см. п. 2.2).
+2. В venv выполнен `pip install -r requirements.txt` — для Windows подтягивается пакет **`nvidia-cublas-cu12`** (cuBLAS для CUDA 12 в `site-packages`).
+3. Скрипт **`transcribe_to_obsidian.py`** сам добавляет `…\site-packages\nvidia\cublas\bin` в `PATH` перед загрузкой модели, чтобы DLL находились без ручной настройки.
 
-Если хочешь только CPU (без GPU): CUDA не нужен; при запуске скрипта указать `--device cpu` (будет медленнее).
+Если при `--device cuda` всё же ошибка про отсутствующий `cublas64_12.dll` — проверь, что пакет установлен:  
+`pip show nvidia-cublas-cu12`.
+
+**Опционально:** полный [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) (11 или 12) — если нужен `nvcc` для других задач; путь к `…\CUDA\v12.x\bin` тогда можно добавить в PATH системы.
+
+Если хочешь только CPU (без GPU): CUDA не нужен; при запуске укажи `--device cpu` (будет медленнее).
 
 ### 2.4. Python 3.10 или новее
 
@@ -62,13 +65,13 @@ faster-whisper на GPU использует CUDA. Нужен установле
 
 На диске, где хранятся записи (например `D:\`):
 
-1. Создать папку, например: `D:\recordings\`.
+1. Создать папку, например: `D:\1 ЗАПИСИ ГОЛОС\recordings\`.
 2. Внутри — подпапки по месяцам: `2024-01`, `2024-02`, …, `2025-03` и т.д. (имена вида `YYYY-MM`).
 
 Итог:
 
 ```
-D:\recordings\
+D:\1 ЗАПИСИ ГОЛОС\recordings\
   2024-01\
   2024-02\
   2024-03\
@@ -145,15 +148,15 @@ D:\recordings\
 ```powershell
 cd C:\Users\sa\N8N-projects\transcription
 .venv\Scripts\activate
-python transcribe_to_obsidian.py "D:\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox"
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox"
 ```
 
-Обработаются только файлы из `D:\recordings\2024-03\`, результаты появятся в `D:\Obsidian\Audio Brain\00_inbox\`.
+Обработаются только файлы из `D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03\`, результаты появятся в `D:\Obsidian\Audio Brain\00_inbox\`.
 
 ### Вариант 2: все месяцы (рекурсивно)
 
 ```powershell
-python transcribe_to_obsidian.py "D:\recordings" "D:\Obsidian\Audio Brain\00_inbox" --recursive
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\Audio Brain\00_inbox" --recursive
 ```
 
 Скрипт обойдёт все подпапки (`2024-01`, `2024-02`, …) и запишет .md в тот же `00_inbox`. Имена .md будут содержать префикс папки (например `2024-01_2024-01-15_001.md`), чтобы не было пересечений.
@@ -161,17 +164,17 @@ python transcribe_to_obsidian.py "D:\recordings" "D:\Obsidian\Audio Brain\00_inb
 ### Вариант 3: с логом (манифест)
 
 ```powershell
-python transcribe_to_obsidian.py "D:\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --manifest "D:\recordings\manifest.csv"
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv"
 ```
 
-В `D:\recordings\manifest.csv` будет дописываться лог: когда какой файл обработан, какое имя .md, какая дата во frontmatter.
+В `D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv` будет дописываться лог: когда какой файл обработан, какое имя .md, какая дата во frontmatter.
 
 ### Вариант 4: без GPU (только CPU)
 
 Если CUDA не ставил или хочешь запустить без видеокарты:
 
 ```powershell
-python transcribe_to_obsidian.py "D:\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --device cpu
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --device cpu
 ```
 
 Будет заметно медленнее, но без видеокарты и драйверов.
@@ -186,7 +189,7 @@ python transcribe_to_obsidian.py "D:\recordings\2024-03" "D:\Obsidian\Audio Brai
 
 ```batch
 @echo off
-set RECORDINGS=D:\recordings
+set RECORDINGS=D:\1 ЗАПИСИ ГОЛОС\recordings
 set INBOX=D:\Obsidian\Audio Brain\00_inbox
 call .venv\Scripts\activate.bat
 python transcribe_to_obsidian.py "%RECORDINGS%\2024-03" "%INBOX%" --manifest "%RECORDINGS%\manifest.csv"
@@ -199,7 +202,7 @@ pause
 
 ## 8. Проверка, что всё связано правильно
 
-1. В папке записей лежат mp3 (например в `D:\recordings\2024-03\`).
+1. В папке записей лежат mp3 (например в `D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03\`).
 2. Запускаешь команду из п. 6 (с своими путями).
 3. В `D:\Obsidian\Audio Brain\00_inbox\` появляются .md с именами, похожими на имена mp3.
 4. В Obsidian открываешь vault Audio Brain → папка 00_inbox — там новые заметки с полем `audio_file` и блоком «Транскрипт».
@@ -211,7 +214,7 @@ pause
 ## 9. Краткий чеклист
 
 - [ ] Установлены: драйвер NVIDIA, CUDA Toolkit (если используешь GPU), Python 3.10+.
-- [ ] Создана папка записей (например `D:\recordings\`) и подпапки по месяцам (`YYYY-MM`).
+- [ ] Создана папка записей (например `D:\1 ЗАПИСИ ГОЛОС\recordings\`) и подпапки по месяцам (`YYYY-MM`).
 - [ ] Vault Audio Brain и папка `00_inbox` существуют (`D:\Obsidian\Audio Brain\00_inbox`).
 - [ ] В `C:\Users\sa\N8N-projects\transcription\` выполнены: `python -m venv .venv`, `activate`, `pip install -r requirements.txt`.
 - [ ] Запуск: `python transcribe_to_obsidian.py "<папка_mp3>" "D:\Obsidian\Audio Brain\00_inbox"` (при необходимости с `--recursive` или `--manifest`).

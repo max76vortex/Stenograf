@@ -2,153 +2,80 @@
 
 ## Task Reference
 
-- Source TZ: `multi-agent-system/current-run/technical_specification.md`
-- Objective: реализовать легковесную точку входа для отображения статуса dry run, блокирующих вопросов и последних артефактов активного прогона.
+- **Source TZ:** `multi-agent-system/current-run/technical_specification.md` (v1.1)
+- **Objective:** Локальный конвейер mp3 → Markdown в Obsidian `00_inbox` с предсказуемыми именами и идемпотентностью.
 
-## Architectural Decision Summary
+## Overview
 
-- Формат поставки: CLI-команда на PowerShell (`multi-agent-system/tools/dryrun-status.ps1`) без новой инфраструктуры.
-- Границы решения: чтение только файлов из `multi-agent-system/status.md` и `multi-agent-system/current-run/`.
-- Режим отказоустойчивости: толерантный парсинг markdown + fallback-значения при неполных секциях.
-- Критичное уточнение из TZ review: список артефактов строится только из `multi-agent-system/current-run/` (включая подкаталоги).
+Однопользовательская система на Windows: CLI- или GUI-запуск Python-скрипта, библиотека faster-whisper (CTranslate2), файловый вывод в каталог vault. Без сервера, без БД, без внешних API для распознавания.
+
+```text
+[Папка mp3] → transcribe_to_obsidian.py → [WhisperModel large-v3] → [.md в 00_inbox]
+                     ↑
+              check_coverage.py (сравнение имён)
+              transcribe_gui.py (subprocess → тот же CLI)
+```
 
 ## Functional Components
 
-### Status Reader
+### transcribe_to_obsidian.py
 
-- Purpose: извлечь состояние процесса из `status.md`.
-- Functions:
-  - извлечение `Status`, `Current stage`, `Current iteration`;
-  - извлечение `Next expected step` из секции `Orchestrator Step State`;
-  - извлечение списка подтвержденных этапов из секции `Confirmed By User`.
-- Dependencies: файловая система, markdown parser helpers.
+- **Purpose:** Основной конвейер: обход mp3, транскрибация, сборка frontmatter + «Транскрипт».
+- **Functions:** `slug`, `date_from_path`, `build_md`, цикл по файлам, опции CLI.
+- **Related use cases:** UC-02–05, UC-07.
+- **Dependencies:** faster-whisper, torch/ctranslate2 (транзитивно), локальные пути.
 
-### Open Questions Reader
+### check_coverage.py
 
-- Purpose: определить наличие блокеров и вернуть их список.
-- Functions:
-  - чтение `current-run/open_questions.md`;
-  - распознавание статуса "нет вопросов" и списка вопросов;
-  - классификация наличия блокирующих вопросов (`true/false`).
-- Dependencies: файловая система, markdown parser helpers.
+- **Purpose:** Отчёт «какие mp3 ещё без ожидаемого .md».
+- **Functions:** Та же логика имён, что и у основного скрипта (дублирование `slug` — известный техдолг).
+- **Related use cases:** UC-04.
+- **Dependencies:** только stdlib.
 
-### Artifacts Enumerator
+### transcribe_gui.py
 
-- Purpose: показать последние созданные артефакты активного прогона.
-- Functions:
-  - рекурсивный обход `current-run/`;
-  - исключение служебных файлов (`README.md` в каталогах);
-  - сортировка по времени модификации (убывание);
-  - возврат top-N (по умолчанию 10).
-- Dependencies: файловая система.
+- **Purpose:** Обёртка tkinter: выбор каталогов, флаги, лог stdout/stderr.
+- **Related use cases:** UC-06.
+- **Dependencies:** stdlib, subprocess вызов `transcribe_to_obsidian.py`.
 
-### Output Formatter
+### Документация
 
-- Purpose: вывести стабильный человекочитаемый отчет.
-- Functions:
-  - единый вывод блоков: `System Status`, `Open Questions`, `Latest Artifacts`;
-  - понятные fallback-сообщения при отсутствии файлов/секций;
-  - совместимость с терминалом без доп. модулей.
-- Dependencies: PowerShell stdlib.
-
-## System Components
-
-### `multi-agent-system/tools/dryrun-status.ps1`
-
-- Type: entry-point CLI script.
-- Purpose: orchestration чтения, агрегации и вывода данных.
-- Technology: PowerShell 5+/7+.
-- Interfaces:
-  - optional params: `-RunPath`, `-StatusPath`, `-Limit`;
-  - stdout: форматированный текстовый отчет;
-  - exit code: `0` для успешного чтения, `1` при критической ошибке.
-
-### `multi-agent-system/tools/dryrun-status.internal.psm1`
-
-- Type: internal module.
-- Purpose: изолировать парсинг markdown и сбор артефактов.
-- Technology: PowerShell module.
-- Interfaces:
-  - `Get-DryRunStatusModel`
-  - `Get-DryRunOpenQuestionsModel`
-  - `Get-DryRunLatestArtifacts`
-  - `Format-DryRunReport`
+- **README.md**, **SETUP.md**, **transcribe_month.bat** — установка и примеры.
 
 ## Data Model
 
-### DryRunStatusModel
+### Файл транскрипта (.md)
 
-- Description: агрегированная модель состояния процесса.
-- Fields:
-  - `overallStatus` (string)
-  - `currentStage` (string)
-  - `currentIteration` (string)
-  - `nextExpectedStep` (string)
-  - `confirmedStages` (string[])
-- Constraints: отсутствующие поля заменяются на `"UNKNOWN"` или `[]`.
+- **Description:** Заметка Obsidian в `00_inbox`.
+- **Fields (frontmatter):** `type: transcript`, `source: audio`, `audio_file`, `date`, `status: inbox`, `tags`, `links`.
+- **Body:** секции «Заголовок», «Краткое резюме», «Транскрипт».
+- **Relations:** `audio_file` = basename исходного mp3; при `--recursive` имя .md кодирует относительный путь для уникальности.
 
-### OpenQuestionsModel
+### Исходный mp3
 
-- Description: модель блокирующих вопросов.
-- Fields:
-  - `hasBlockingQuestions` (bool)
-  - `questions` (string[])
-- Constraints: если файл отсутствует/пустой, возвращается `false` и пустой список.
-
-### ArtifactItem
-
-- Description: один артефакт активного прогона.
-- Fields:
-  - `path` (string, relative to `current-run/`)
-  - `lastWriteTime` (datetime)
-  - `category` (enum: `task|review|report|core|other`)
-- Constraints: в выдачу не попадают служебные `README.md`.
+- **Constraints:** рекомендуемый шаблон имени `YYYY-MM-DD_NNN[_метка].mp3`; путь задаёт пользователь.
 
 ## Interfaces
 
-### CLI Interface
+### Internal (процесс)
 
-- Endpoint or protocol: локальный запуск PowerShell-скрипта.
-- Input:
-  - `-StatusPath` (default `multi-agent-system/status.md`)
-  - `-RunPath` (default `multi-agent-system/current-run`)
-  - `-Limit` (default `10`)
-- Output: текстовый отчет по 3 обязательным блокам.
-- Errors:
-  - missing required file (`status.md`) -> ошибка с actionable message;
-  - parse mismatch -> warning + fallback значения.
+- **CLI:** `python transcribe_to_obsidian.py <input_dir> <output_dir> [options]`
+- **GUI:** `python transcribe_gui.py` → `subprocess` с тем же интерпрейсом.
 
-### Internal Parsing Contract
+### External
 
-- Producer: `status.md`, `open_questions.md`, файлы `current-run/`.
-- Consumer: `dryrun-status.internal.psm1`.
-- Contract:
-  - `status.md` содержит секции `System State`, `Confirmed By User`, `Orchestrator Step State`;
-  - `open_questions.md` содержит секцию `Status` и/или маркированный список вопросов;
-  - latest artifacts вычисляются по mtime, scope = `current-run/**`.
+- Нет HTTP API. Выход — только файловая система.
 
 ## Security
 
-- Authentication: не требуется (локальная служебная команда).
-- Authorization: права текущего локального пользователя к файлам workspace.
-- Data protection: чтение локальных markdown без передачи наружу.
+- Локальная обработка; секреты не требуются. Vault и пути на диске пользователя.
 
 ## Deployment And Migration
 
-- Environments: локальная dev-среда в workspace.
-- Config changes: не требуются.
-- Migration steps:
-  - добавить/обновить `dryrun-status.ps1` и внутренний модуль;
-  - выполнить smoke-run с дефолтными путями;
-  - проверить сценарий с отсутствием одного из опциональных файлов.
-
-## Test Strategy (Smoke)
-
-- Scenario 1: все файлы присутствуют -> вывод всех блоков и списка top-N артефактов.
-- Scenario 2: `open_questions.md` без вопросов -> `hasBlockingQuestions = false`.
-- Scenario 3: отсутствует часть секций в `status.md` -> fallback-поля без падения скрипта.
-- Scenario 4: нет подкаталогов `reviews/reports/tasks` -> вывод "артефакты не найдены" в блоке.
+- **Environment:** venv в `transcription/.venv`; CUDA опционально.
+- **Migration:** не применимо; обновление скрипта = замена файлов в репозитории.
 
 ## Open Questions
 
-- None
+- Вынести `slug` / ожидаемое имя `.md` в общий модуль для синхронизации с `check_coverage.py` (опционально).
+- Поддержка wav/m4a (опционально).

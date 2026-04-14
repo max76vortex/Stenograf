@@ -1,71 +1,36 @@
-# Task 02: Артефакты — исключения README и корректные пути при override
+# Task 02: Массовый прогон архива записей
 
 ## Goal
 
-- Соответствие архитектуре и ТЗ: список «последних артефактов» строится по `current-run/**`, **без** служебных `README.md`, с корректными относительными путями при `-CurrentRunDirectoryOverride`.
+Обработать накопленные записи (ориентир ~30 ГБ) батчами с соблюдением порядка в папках и без потери связи mp3 ↔ транскрипт.
 
 ## Related Use Cases
 
-- UC-03: Список последних артефактов активного прогона.
+- UC-03 (рекурсия), UC-05 (длинный прогон), UC-07 (пауза между файлами).
 
-## Changes
+## Steps
 
-### New Files
-
-- (нет)
-
-### Existing Files
-
-#### `multi-agent-system/tools/dryrun-status.internal.psm1`
-
-- Change: в `Get-RunArtifactsFromCurrentRun` (или эквиваленте):
-  - пропускать файлы с именем `README.md` (в любом подкаталоге);
-  - при заданном `$CurrentRunDirectoryOverride` использовать его как корень обхода **и** как базу для относительного пути в поле вывода (исправить смещение, если override не совпадает с дефолтным `.../current-run`).
-- Optional: добавить в модель `ArtifactEntry` поле `Category` (`task` | `review` | `report` | `core` | `other`) по префиксу пути для строки отчёта.
-- Expected behavior: top-N по mtime (убывание), tie-break по пути; при пустом наборе — явное сообщение в отчёте.
-
-#### `multi-agent-system/tools/dryrun-status.ps1`
-
-- Change: при наличии категорий — вывести в строке артефакта (минимально, без ломания текста).
-
-## Integration Notes
-
-- Не индексировать вне `current-run` для этой фичи.
-- Сохранить производительность на типичном дереве (без внешних БД).
-
-## Test Cases
-
-### End-To-End
-
-1. Scenario: в тестовом каталоге есть `sub/README.md` и обычные `.md`.
-   - Input: `-CurrentRunDirectoryOverride` на каталог фикстуры, `-Top 5`.
-   - Expected result: `README.md` не в списке; остальные отсортированы по времени.
-
-2. Scenario: override указывает на копию `current-run` с другим абсолютным путём.
-   - Expected result: относительные пути в выводе согласованы с документированным форматом (`multi-agent-system/current-run/...` или согласованный префикс — зафиксировать в Task 03/05).
-
-### Unit Tests
-
-1. Scenario: имя файла `Readme.md` vs `README.md` на Windows.
-   - Target: правило исключения (рекомендуется сравнение без учёта регистра для basename).
-
-### Regression
-
-- Existing tests to run: `multi-agent-system/tools/task_04_tests.ps1`.
+1. Подготовить дерево `recordings/YYYY-MM/` и имена `YYYY-MM-DD_NNN[_метка].mp3` (см. `memory-bank/creative/creative-transcription-workflow.md`).
+2. Выбрать стратегию: **по месяцам** (отдельный запуск на каждую папку) или **один** запуск с `--recursive` на корень `recordings`.
+3. Запускать в удобное время (ночь); при необходимости:  
+   `--sleep-between-seconds 2` (или GUI с паузой).
+4. Опционально вести `--manifest D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv`.
+5. Периодически: `check_coverage.py` с теми же флагами, что и транскрибация.
+6. При сбое — повторный запуск **без** `--overwrite` (добавятся только недостающие).
 
 ## Acceptance Criteria
 
-- [ ] README исключены из списка артефактов
-- [ ] Override каталога не ломает относительные пути
-- [ ] Tests passed
-- [ ] Documentation updated (Task 05)
+- [ ] Все целевые mp3 имеют соответствующие `.md` в `00_inbox` (или осознанный остаток в backlog).
+- [ ] Манифест/лог (если использовался) согласован с фактом.
 
-## Risks
+## Status
 
-| Риск | Уровень | Примечание |
-| --- | --- | --- |
-| Различие регистра имён на Windows | Средний | Явное правило сравнения basename |
+- [ ] Not started
+- [x] In progress
+- [ ] Done
 
-## Estimate
+## Run Log
 
-- S: 0.5 дня.
+- 2026-03-30: Старт массового прогона на реальных данных с папки `D:\1 ЗАПИСИ ГОЛОС\recordings` (1 файл).
+- Результат: создан `D:\Obsidian\Audio Brain\00_inbox\28-....md`, `check_coverage.py` для этой папки без MISSING.
+- Ограничение: `cuda` не поднялась (`cublas64_12.dll`), прогон выполнен на `--device cpu --compute-type int8`.

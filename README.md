@@ -2,7 +2,7 @@
 
 Конфигурация n8n для домена **n8n.maxvortex.ru**.
 
-**Статус:** развёрнуто на сервере. Доступ: https://n8n.maxvortex.ru
+**Статус:** развёрнуто на сервере. Доступ: [https://n8n.maxvortex.ru](https://n8n.maxvortex.ru)
 
 ---
 
@@ -13,7 +13,7 @@ cd N8N-projects
 docker compose up -d
 ```
 
-n8n будет доступен на http://localhost:5678
+n8n будет доступен на [http://localhost:5678](http://localhost:5678)
 
 ---
 
@@ -75,12 +75,12 @@ N8N-projects/
 
 ### Инициализация в новом проекте
 
-- Скилл **memory-bank-init** (`.cursor/skills/memory-bank-init/SKILL.md`): Memory Bank 2.0 + реестр `WS-NNN` + опционально журнал активности; переносимые шаблоны в **`memory-bank/bootstrap/`**.
-- Что вставить в **глобальные** User Rules Cursor: **`memory-bank/bootstrap/GLOBAL-CURSOR-SETUP.md`**.
+- Скилл **memory-bank-init** (`.cursor/skills/memory-bank-init/SKILL.md`): Memory Bank 2.0 + реестр `WS-NNN` + опционально журнал активности; переносимые шаблоны в `**memory-bank/bootstrap/`**.
+- Что вставить в **глобальные** User Rules Cursor: `**memory-bank/bootstrap/GLOBAL-CURSOR-SETUP.md`**.
 
 ## Мультиагентная система (MAS)
 
-**MAS** — сокращение для каталога **`multi-agent-system/`** (Multi-Agent System).
+**MAS** — сокращение для каталога `**multi-agent-system/`** (Multi-Agent System).
 
 В проект добавлен комплект для локальной мультиагентной разработки варианта B:
 
@@ -94,3 +94,4 @@ N8N-projects/
 - `multi-agent-system/runbooks/operator-guide.md`
 - `multi-agent-system/runbooks/orchestrator-start-prompt.md`
 - `multi-agent-system/runbooks/prerequisites.md`
+

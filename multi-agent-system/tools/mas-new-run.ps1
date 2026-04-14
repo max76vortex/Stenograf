@@ -192,7 +192,7 @@ $write = {
 & $write (Join-Path $currentRun 'open_questions.md') $openQuestions
 & $write (Join-Path $masRoot 'status.md') $statusContent
 
-if ($WhatIf) {
+if ($WhatIfPreference) {
     Write-Host ''
     Write-Host 'WhatIf: preview only — файлы не изменены.' -ForegroundColor Yellow
     exit 0

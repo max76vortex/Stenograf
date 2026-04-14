@@ -106,7 +106,7 @@ recordings/
 
 2. **Запуск транскрибации**
    - Запускать скрипт по одной папке месяца:  
-     `python transcribe_to_obsidian.py "D:\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox"`
+     `python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox"`
    - Или по корню `recordings` с рекурсией по подпапкам (если скрипт поддерживает).
    - Без `--overwrite` уже существующие .md не трогаем — можно безопасно повторять запуск после добавления новых файлов.
 

@@ -3,11 +3,11 @@
 ## System State
 
 - Variant: B
-- Status: COMPLETE
-- Current stage: completed
+- Status: IN_PROGRESS
+- Current stage: development_in_progress
 - Current iteration: 1
-- Active task: dry-run-system-status-surface
-- Last updated by: orchestrator
+- Active task: audio-transcription-v1
+- Last updated by: agent (task_01 smoke E2E в vault + fix date_from_path; далее task_02 у пользователя)
 
 ## Stage Ledger
 
@@ -17,59 +17,58 @@
 - [x] Architecture review
 - [x] Planning
 - [x] Plan review
-- [x] Development
-- [x] Code review
-- [x] Final summary
+- [ ] Development
+- [ ] Code review
+- [ ] Final summary
 
 ## Confirmed By User
 
-- [x] Analysis
-- [x] TZ review
-- [x] Architecture
-- [x] Architecture review
-- [x] Planning
-- [x] Plan review
-- [x] Development
-- [x] Code review
-- [x] Final summary
+- [x] Analysis (контент согласован в переписке)
+- [x] TZ review (подтверждено: «всё подходит»)
+- [ ] Architecture
+- [ ] Architecture review
+- [ ] Planning
+- [ ] Plan review
+- [ ] Development
+- [ ] Code review
+- [ ] Final summary
 
 ## Current Artifacts
 
 - Task brief: `multi-agent-system/current-run/task_brief.md`
 - Project context: `multi-agent-system/current-run/project_context.md`
 - Open questions: `multi-agent-system/current-run/open_questions.md`
-- Technical specification: `multi-agent-system/current-run/technical_specification.md`
-- TZ review: `multi-agent-system/current-run/reviews/tz_review.md`
+- Technical specification: `multi-agent-system/current-run/technical_specification.md` (v1.1)
+- TZ review: `multi-agent-system/current-run/tz_review.md`
 - Architecture: `multi-agent-system/current-run/architecture.md`
-- Architecture review: `multi-agent-system/current-run/reviews/architecture_review.md`
+- Architecture review: `multi-agent-system/current-run/architecture_review.md`
 - Plan: `multi-agent-system/current-run/plan.md`
-- Planned tasks: `multi-agent-system/current-run/tasks/task_01.md` ... `multi-agent-system/current-run/tasks/task_06.md`
-- Plan review: `multi-agent-system/current-run/reviews/plan_review.md`
-- Development report: `multi-agent-system/current-run/reports/development_stage_report.md`
-- Code review: `multi-agent-system/current-run/reviews/code_review.md`
-- Final summary: `multi-agent-system/current-run/reports/final_summary.md`
+- Planned tasks: `multi-agent-system/current-run/tasks/`
+- Plan review: `multi-agent-system/current-run/plan_review.md`
+- Development report: (not created yet)
+- Code review: (not created yet)
+- Final summary: (not created yet)
 
 ## Open Questions Summary
 
-- None
+- Уточняющие: см. `current-run/open_questions.md` и `architecture.md`.
 
 ## Review Outcome
 
-- Last review stage: `Final summary`
-- Last review iteration: `1/1`
-- Verdict: `CONFIRMED_AND_CLOSED`
+- Last review stage: plan_review
+- Last review iteration: 1/1
+- Verdict: approved
 - Blocking questions: none
 
 ## Orchestrator Step State
 
-- Current stage: `Completed`
+- Current stage: `Development / user acceptance`
 - Current iteration: `1/1`
-- Last created artifact: `multi-agent-system/current-run/reports/final_summary.md`
-- Open questions: none
-- Next expected step: run closed; wait for a new task or explicit archive action
+- Last created artifact: `current-run/tasks/task_01.md`, `task_02.md`, `transcription/run-smoke-test.ps1`, обновлённый `plan.md`
+- Next expected step: выполнить **task_01** (smoke), затем **task_02** (массовый прогон). См. `current-run/plan.md` раздел «План работ (исполнение)».
 
 ## Next Action
 
-- Run is marked `COMPLETE`.
-- Archive completed. See `multi-agent-system/current-run/reports/archive_report_task_06.md` and `memory-bank/archive/Архив - мультиагентная система Variant B.md`.
-- Await user decision: start a new run when a new task is provided.
+1. Запустить smoke: `pwsh -File transcription\run-smoke-test.ps1` (из корня репо) или следовать `current-run/tasks/task_01.md`.
+2. Прогнать 1–2 тестовых mp3 в `00_inbox`; отметить чеклисты в `task_01.md`.
+3. Перейти к `task_02.md` и массовому прогону; по готовности — `final_summary.md` и закрытие Phase 1 в Memory Bank.

@@ -1,0 +1,16 @@
+{
+  "phase": "A",
+  "audio_file": "2026-03-30_001_smoke.wav",
+  "source_audio_path": "C:\\Users\\sa\\N8N-projects\\transcription\\test_assets\\2026-03\\2026-03-30_001_2026-03-30_001_smoke__src-20260330\\2026-03-30_001_smoke.wav",
+  "asset_path": "C:\\Users\\sa\\N8N-projects\\transcription\\test_assets\\2026-03\\2026-03-30_001_2026-03-30_001_smoke__src-20260330",
+  "updated_at": "2026-03-31T00:05:14",
+  "versions": [
+    {
+      "timestamp": "2026-03-31T00:05:14",
+      "phase": "A",
+      "transcript_file": "01_transcript__inbox.md",
+      "published_inbox_path": "D:\\Obsidian\\Audio Brain\\00_inbox\\2026-03-30_001_smoke.md"
+    }
+  ],
+  "created_at": "2026-03-31T00:05:14"
+}

@@ -1,97 +1,58 @@
-# Development Plan
+# Plan
 
-## Task Reference
+## Objective
 
-- TZ: `multi-agent-system/current-run/technical_specification.md`
-- Architecture: `multi-agent-system/current-run/architecture.md`
-- Task brief: `multi-agent-system/current-run/task_brief.md`
-- Real E2E control task: `multi-agent-system/current-run/tasks/task_06.md` (meta-stage after delivery)
+Завершить внедрение и эксплуатацию конвейера транскрибации по ТЗ v1.1: оставшиеся работы минимальны, код и документация в основном готовы.
 
-## Goal
+## Task Breakdown
 
-Завершить служебную точку входа (CLI) для dry run: полный вывод статуса процесса по ТЗ, блокирующие вопросы, последние артефакты активного прогона — без тяжёлой инфраструктуры и без изменений контура n8n.
+| ID | Task | Owner | Status |
+|----|--------|-------|--------|
+| T1 | Проверка: установка по SETUP, прогон тестовой папки → 00_inbox | User + Agent | Done (smoke: `test_smoke/` → vault, tiny+cpu; свои mp3 — по SETUP с large-v3+cuda) |
+| T2 | Прогон на реальном объёме (батчи по месяцам), при необходимости настройка `--sleep-between-seconds` | User | Pending |
+| T3 | (Опционально) Вынести `slug` / expected md name в общий модуль + минимальные тесты | Dev | Optional |
+| T4 | (Опционально) Поддержка wav/m4a через `--ext` / конвертация | Dev | Optional |
+| T5 | Обновить `memory-bank/tasks.md` Phase 1 при закрытии приёмки пользователем | Agent | Pending |
 
-## Decision (из архитектуры)
+## Milestones
 
-- **Поставка:** PowerShell CLI `multi-agent-system/tools/dryrun-status.ps1` + модуль `dryrun-status.internal.psm1`.
-- **Источники:** `multi-agent-system/status.md`, `multi-agent-system/current-run/open_questions.md`, рекурсивно `multi-agent-system/current-run/**/*.md`.
+1. **M1 — Техническая готовность:** репозиторий содержит скрипты, GUI, README, SETUP, ТЗ, архитектуру — **достигнуто**.
+2. **M2 — Приёмка пользователем:** успешный прогон на своих данных без блокеров — **вне репозитория**.
 
-## Текущее состояние (инвентаризация)
+## Dependencies
 
-| Компонент | Состояние |
-| --- | --- |
-| Чтение `## System State` (Variant, Status, stage, iteration, active task, last updated) | Реализовано в модуле |
-| Чтение блокеров из `open_questions.md` + fallback `## Open Questions Summary` | Реализовано |
-| Список последних `.md` по mtime под `current-run/` | Реализовано |
-| **Next expected step**, **подтверждённые пользователем этапы** (ТЗ § FR1) | Не выводятся в отчёт; парсинг секций неполный |
-| Исключение служебных `README.md` из артефактов (архитектура) | Не реализовано |
-| Корректность путей при `-CurrentRunDirectoryOverride` (тесты task_04) | Требует проверки/исправления |
-| `dryrun-status.ps1`: двойной вызов `Build-StatusSurfaceReport` | Дефект (лишний вызов без overrides) |
-| Имена параметров в архитектуре (`-Limit`, `-RunPath`) vs скрипт (`-Top`, overrides) | Расхождение документации и кода |
+- GPU/CUDA при использовании `device=cuda`.
+- Свободное место на диске для модели и выходных `.md`.
 
-## Целевое состояние (критерии приёмки ТЗ)
+## Risks
 
-1. Одна команда из корня workspace даёт три блока: **System Status** (включая next step и подтверждённые этапы), **Blocking Questions**, **Latest Artifacts**.
-2. Данные из markdown-файлов, не захардкожены.
-3. Устойчивость к отсутствию опциональных секций/файлов.
-4. Существующие workflow не ломаются.
+- Длительные прогонки: использовать паузу между файлами; не перегружать ПК параллельными тяжёлыми задачами.
+- Рассинхрон имён при ручном изменении правил — см. `check_coverage.py`.
 
-## Execution Stages
+---
 
-### Stage 1 — Модель статуса и вывод
+## План работ (исполнение)
 
-- Расширить модель/парсинг `status.md`: секции `## Orchestrator Step State` (минимум `Next expected step`), `## Confirmed By User` (список отмеченных этапов).
-- Обновить форматирование отчёта в `dryrun-status.ps1`.
+**Спринт A — окружение и smoke (сейчас)**
 
-### Stage 2 — Артефакты
+1. Создать venv в `transcription/`, установить зависимости (`requirements.txt`).
+2. Проверить: `python transcribe_to_obsidian.py --help` и `python check_coverage.py --help` без ошибок.
+3. Положить 1–2 коротких тестовых mp3 в пустую папку (или тестовую подпапку `recordings`).
+4. Запустить транскрибацию на эту папку → проверить появление `.md` в `00_inbox` и открытие в Obsidian.
+5. Запустить `check_coverage.py` — убедиться, что для всех mp3 есть `.md` (или список пуст).
 
-- Исключить `README.md` при обходе; исправить вычисление относительного пути при override каталога прогона.
-- Опционально: поле категории (`tasks/`, `reviews/`, `reports/`, корень) для строки вывода.
+Автоматизация шагов 1–2: скрипт `transcription/run-smoke-test.ps1` (из корня репозитория или из `transcription/`).
 
-### Stage 3 — CLI и надёжность
+**Спринт B — массовый прогон**
 
-- Убрать дублирующий вызов сборки отчёта; зафиксировать exit code (0 при успешном выводе, 1 при фатальной ошибке импорта/чтения обязательных путей — по согласованию с тестами).
-- Синхронизировать документацию параметров (алиасы `-Limit`/`-Top` или единое имя в runbook).
+1. Разложить/переименовать архив по схеме `recordings/YYYY-MM/` и шаблону имён (по `creative-transcription-workflow.md`).
+2. Гонять по месяцам **или** один раз с `--recursive` на корень `recordings`.
+3. При перегреве/нагрузке: `--sleep-between-seconds` или GUI с паузой; при необходимости снизить приоритет процесса в ОС.
+4. Периодически: `check_coverage.py` и при желании `--manifest` для лога.
 
-### Stage 4 — Тесты и документация
+**Спринт C — опционально (репозиторий)**
 
-- Расширить `tools/task_04_tests.ps1` (или аналог) сценариями для новых полей и README exclusion.
-- Обновить `runbooks/status-surface-runbook.md` и при необходимости `multi-agent-system/README.md`.
+- T3: общий модуль `slug` + тесты.
+- T4: wav/m4a.
 
-## Tasks
-
-| ID | Кратко | Зависимости | Файл |
-| --- | --- | --- | --- |
-| Task 01 | Парсинг и вывод: next step + confirmed stages | — | `tasks/task_01.md` |
-| Task 02 | Артефакты: README exclusion + fix override paths | — (можно параллельно с 01 после договорённости по API модуля) | `tasks/task_02.md` |
-| Task 03 | CLI: убрать двойной Build, exit codes, параметры | 01–02 по желанию (логически после стабилизации модуля) | `tasks/task_03.md` |
-| Task 04 | Автотесты smoke | 01–03 | `tasks/task_04.md` |
-| Task 05 | Документация runbook/README | 01–04 | `tasks/task_05.md` |
-| Task 06 | Реальный E2E dry run оркестратора | После закрытия 01–05; вне scope поставки CLI по ТЗ | `tasks/task_06.md` |
-
-### Coordination Rule (Task 01/02 parallel)
-
-- До старта параллельной работы согласовать публичный контракт `dryrun-status.internal.psm1`: имена экспортируемых функций и формат путей в сценариях `-CurrentRunDirectoryOverride`.
-- Merge order: сначала изменения, не затрагивающие сигнатуры, затем объединение правок по общему API модуля.
-
-## Use Case Coverage
-
-| Use Case | Tasks |
-| --- | --- |
-| UC-1: Просмотр полного статуса процесса | 01, 03, 04, 05 |
-| UC-2: Проверка блокеров | 04 (явный assert по FR2), 05 |
-| UC-3: Список последних артефактов прогона | 02, 04, 05 |
-
-## Риски (сводка)
-
-| Риск | Вероятность | Влияние | Митигация |
-| --- | --- | --- | --- |
-| Разный markdown в `status.md` | Средняя | Среднее | Толерантный парсинг, UNKNOWN/fallback, тесты на частичные секции |
-| Регресс путей при override | Средняя | Высокое | Явные тесты в task_04 |
-| Дублирование логики вывода | Низкая | Низкое | Один путь сборки отчёта в task_03 |
-
-## Definition of Done (весь план)
-
-- [ ] Все task-файлы выполнены или отменены с причиной.
-- [ ] `pwsh -File multi-agent-system/tools/dryrun-status.ps1` отражает ТЗ и проходит smoke-тесты.
-- [ ] Runbook обновлён; нет расхождений с фактическим поведением без пометки.
+Детализация задач: `current-run/tasks/task_01.md`, `task_02.md`.

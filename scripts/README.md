@@ -14,7 +14,7 @@ pwsh -NoLogo -File "scripts/append-activity-journal.ps1" -Message "Кратко:
 
 ## `Get-ActivityReport.ps1`
 
-Печатает в консоль **хвост журнала** + **`git log`** за последние N дней (по умолчанию 7).
+Печатает в консоль **хвост журнала** + `**git log`** за последние N дней (по умолчанию 7).
 
 ```powershell
 pwsh -NoLogo -File "scripts/Get-ActivityReport.ps1"

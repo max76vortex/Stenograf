@@ -1,96 +1,160 @@
 # Technical Specification
 
-## Title
+**MAS Project ID:** `audio-transcription-v1`  
+**Версия документа:** 1.1  
+**Статус:** согласовано с реализацией (GUI, пауза между файлами)
 
-Dry Run: Service status surface for multi-agent process
+## General Description
 
-## Objective
+- **Task summary:** Локальный конвейер транскрибации большого объёма диктофонных записей (mp3) в заметки Markdown для отдельного vault Obsidian «Audio Brain» с предсказуемым порядком файлов и однозначной связью «исходный mp3 ↔ транскрипт».
+- **Goal:** Пользователь может на своём ПК (Windows, GPU NVIDIA 6+ ГБ) установить окружение, разложить записи по согласованной схеме папок/имён, запустить скрипт и получить `.md` в `00_inbox`; при необходимости проверить, какие mp3 ещё не имеют транскрипта.
+- **Scope:** Репозиторий `N8N-projects`, каталог `transcription/`; документация `README.md`, `SETUP.md`; утилиты `transcribe_to_obsidian.py`, `check_coverage.py`; дизайн процесса в `memory-bank/creative/creative-transcription-workflow.md`. **Вне scope:** Ghost, постинг, CMS, автоматизация через n8n для публикации.
+- **Relation to existing system:** Код и документация уже частично реализованы; ТЗ формализует требования и критерии приёмки для доведения до эксплуатации на реальных 30 ГБ данных и устранения пробелов (тесты, edge cases).
 
-Implement a lightweight service page or command that displays:
-- current system status;
-- presence of open blocking questions;
-- latest generated artifacts of the active run.
+## Use Cases
 
-The solution must validate the dry-run process end-to-end without introducing heavy infrastructure.
+### UC-01: Первичная установка окружения
 
-## Scope
+**Actors:** Пользователь; система (Python, pip, CUDA при GPU).
 
-### In Scope
+**Preconditions:** Windows; права на установку Python/CUDA; доступ в интернет для загрузки модели.
 
-- Read and show data from:
-  - `multi-agent-system/status.md`
-  - `multi-agent-system/current-run/open_questions.md`
-  - `multi-agent-system/current-run/` (artifacts list)
-- Provide one user-facing entry point:
-  - either a dedicated service page in the existing project context, or
-  - a lightweight command/script for terminal usage.
-- Keep output readable and stable for dry-run validation.
+**Main Scenario**
 
-### Out of Scope
+1. Пользователь устанавливает Python 3.10+, при необходимости CUDA Toolkit и драйвер NVIDIA.
+2. Создаёт venv в `transcription/.venv`, выполняет `pip install -r requirements.txt`.
+3. Первый запуск транскрибации инициирует загрузку модели `large-v3`.
 
-- New external services or databases.
-- Major refactoring of existing `n8n`-related infrastructure.
-- Heavy orchestration platform changes outside current dry-run boundaries.
+**Postconditions:** Команда `python transcribe_to_obsidian.py --help` выполняется без ошибки импорта.
 
-## Inputs and Source of Truth
+**Acceptance Criteria**
 
-- Task brief: `multi-agent-system/current-run/task_brief.md`
-- Project context: `multi-agent-system/current-run/project_context.md`
-- Global process status: `multi-agent-system/status.md`
-- Run-level questions and artifacts: `multi-agent-system/current-run/`
+- [ ] Документ `SETUP.md` позволяет воспроизвести шаги без обращения к неописанным действиям.
+- [ ] Указаны минимальные версии и проверки (`python --version`, опционально `nvcc`).
 
-## Functional Requirements
+### UC-02: Транскрибация одного месяца записей
 
-1. Status view must include:
-   - global process status (`IN_PROGRESS`, `BLOCKED`, etc.);
-   - current stage and iteration;
-   - next expected step;
-   - user-confirmed stages list.
-2. Blocking questions view must clearly show:
-   - whether blockers exist;
-   - blocker list (if present) from `open_questions.md`.
-3. Artifacts view must show latest created artifacts for active run:
-   - at minimum: key files from current run and recent task/review/report artifacts.
-4. Output must remain usable even if some optional files are missing.
+**Actors:** Пользователь; скрипт `transcribe_to_obsidian.py`.
+
+**Preconditions:** В `D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03\` (или аналог) лежат `.mp3` с рекомендуемыми именами `YYYY-MM-DD_NNN[_метка].mp3`; существует папка vault `...\Audio Brain\00_inbox\`.
+
+**Main Scenario**
+
+1. Пользователь активирует venv и запускает:  
+   `python transcribe_to_obsidian.py "<папка_месяца>" "<путь_к_00_inbox>"`
+2. Для каждого mp3, для которого ещё нет соответствующего `.md` (без `--overwrite`), скрипт создаёт `.md` с frontmatter (`type: transcript`, `audio_file`, `date`, `status: inbox`) и телом «Транскрипт».
+
+**Alternative Scenarios**
+
+- A1: Уже есть `.md` — файл пропускается (идемпотентность).
+- A2: `--overwrite` — существующие `.md` перезаписываются.
+- A3: `--manifest path.csv` — в CSV дописываются строки об успешной обработке.
+
+**Postconditions:** В `00_inbox` появились новые заметки; в Obsidian они открываются и содержат текст транскрипта.
+
+**Acceptance Criteria**
+
+- [ ] Имя выходного `.md` однозначно выводится из имени mp3 (slug), без коллизий при корректных именах.
+- [ ] Поле `audio_file` во frontmatter совпадает с именем исходного файла.
+- [ ] Дата в frontmatter извлекается из имени (шаблон даты) или из mtime при отсутствии даты в имени.
+
+### UC-03: Транскрибация всего дерева `recordings/` (несколько месяцев)
+
+**Actors:** Пользователь; скрипт с `--recursive`.
+
+**Preconditions:** Корень `recordings/` с подпапками `YYYY-MM\`; внутри — mp3.
+
+**Main Scenario**
+
+1. Запуск: `python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "<00_inbox>" --recursive`
+2. Имена `.md` формируются с учётом относительного пути (префикс папки), чтобы записи из разных месяцев с одинаковым stem не перезаписывали друг друга.
+
+**Acceptance Criteria**
+
+- [ ] Два файла в разных подпапках с одинаковым именем файла дают два разных `.md` в inbox.
+
+### UC-04: Проверка покрытия (какие mp3 без транскрипта)
+
+**Actors:** Пользователь; `check_coverage.py`.
+
+**Preconditions:** Те же корни, что для UC-02/03; режим `--recursive` согласован с тем, как выполнялась транскрибация.
+
+**Main Scenario**
+
+1. `python check_coverage.py "<recordings>" "<00_inbox>" [--recursive]`
+2. В консоль выводится список mp3, для которых ожидаемый `.md` отсутствует в inbox.
+
+**Acceptance Criteria**
+
+- [ ] Логика ожидаемого имени `.md` совпадает с `transcribe_to_obsidian.py` (документировано в README).
+
+### UC-05: Длительный прогон (~30 ГБ)
+
+**Actors:** Пользователь; GPU/CPU.
+
+**Preconditions:** Достаточно места на диске; стабильное питание; при прерывании — возможность повторного запуска без полной перезаписи (без `--overwrite`).
+
+**Main Scenario**
+
+1. Пользователь обрабатывает данные батчами по месяцам или одним `--recursive` прогоном.
+2. При сбое повторный запуск продолжает только недостающие файлы.
+
+**Acceptance Criteria**
+
+- [ ] Поведение «пропуск существующего .md» задокументировано; нет требования держать всё в памяти сразу.
+
+### UC-06: Запуск через графический лаунчер (опционально)
+
+**Actors:** Пользователь; `transcribe_gui.py` (tkinter).
+
+**Main Scenario:** Пользователь выбирает папки входа/выхода, при необходимости включает recursive/overwrite/manifest и паузу между файлами; запускает обработку и читает лог в окне.
+
+**Acceptance Criteria**
+
+- [ ] Лаунчер вызывает тот же `transcribe_to_obsidian.py`, не дублируя логику транскрибации.
+
+### UC-07: Снижение непрерывной нагрузки на GPU/диск
+
+**Actors:** Пользователь; параметр `--sleep-between-seconds`.
+
+**Main Scenario:** После каждого успешно обработанного файла выполняется пауза заданной длительности (0 по умолчанию).
+
+**Acceptance Criteria**
+
+- [ ] Пауза не применяется к пропущенным (уже существующим) `.md`.
 
 ## Non-Functional Requirements
 
-- No breaking changes for current `n8n` setup.
-- Minimal dependencies (prefer built-in tools/stack already in repo).
-- Fast local execution and easy manual verification.
-- Implementation stays inside current repository boundaries, preferably under `multi-agent-system/`.
+- **Performance:** Использование GPU (`cuda`, `float16`) на RTX 3060 6 ГБ; модель `large-v3` должна помещаться в VRAM согласно документации faster-whisper. Fallback `cpu` допустим с оговоркой по времени.
+- **Security / privacy:** Обработка локально; без отправки аудио на внешние API в рамках этого конвейера.
+- **Compatibility:** Windows 10/11; Python 3.10+; кодировка UTF-8 для `.md`.
+- **Reliability:** Идемпотентность без `--overwrite`; опциональный манифест для аудита.
+- **Maintainability:** Единая функция `slug` и правила имён задокументированы; при изменении правил — синхронно обновлять `check_coverage.py` и README.
+- **Resource smoothing:** Опциональная пауза между файлами; полное «ограничение % GPU» в ТЗ не требуется (consumer GPU); альтернатива — приоритет процесса ОС, `CUDA_VISIBLE_DEVICES`, `--device cpu`.
 
-## Constraints
+## Constraints And Assumptions
 
-- Do not break existing infrastructure.
-- Do not introduce heavy new infrastructure.
-- Reuse existing contour under `multi-agent-system/`.
-- Assume Cursor CLI binaries are unavailable in `PATH` unless explicitly provided.
+- Формат входа: в основном `.mp3` (параметр `--ext`).
+- Vault Audio Brain и папка `00_inbox` создаются/поддерживаются пользователем; скрипт только пишет файлы.
+- Качество распознавания ограничено моделью Whisper и качеством записи; постобработка (LLM, ручная правка) не входит в scope.
+- Имена файлов с символами вне набора, допускаемого `slug`, могут быть сильно усечены или унифицированы — рекомендуется следовать шаблону имён из creative-transcription-workflow.
 
-## Acceptance Criteria
+## Gap Analysis (текущее состояние vs ТЗ)
 
-- User can run one command or open one page and get:
-  - current process status;
-  - blocker presence/details;
-  - list of latest active-run artifacts.
-- Data is sourced from current markdown artifacts, not hardcoded.
-- Existing workflows continue to work unchanged.
-- Output is understandable enough to support stage confirmation flow in dry run.
-
-## Risks and Mitigations
-
-- Risk: inconsistent markdown formats in source files.
-  - Mitigation: implement tolerant parsing with safe fallbacks.
-- Risk: ambiguity in "latest artifacts" definition.
-  - Mitigation: in planning phase, define deterministic selection rule (e.g., by file modified time or explicit sections).
+| Требование | Состояние |
+|------------|-----------|
+| Скрипт транскрибации + large-v3 | Реализовано |
+| `--recursive`, `--manifest` | Реализовано |
+| README, SETUP, пример bat | Есть |
+| check_coverage | Реализовано |
+| transcribe_gui.py (опционально) | Реализовано |
+| `--sleep-between-seconds` | Реализовано |
+| E2E на реальной папке пользователя | Подтверждается пользователем вне репозитория |
+| Автотесты (unit/интеграция) | Не обязательны для MVP; опционально в фазе Development |
 
 ## Open Questions
 
-- No blocking questions identified at analysis stage.
+- Нужны ли автоматические тесты на `slug` / `expected_md_name` (общий модуль) для исключения рассинхрона с `check_coverage.py`?
+- Нужна ли поддержка форматов кроме mp3 (wav, m4a) в той же команде?
 
-## Handover to TZ Review
-
-Reviewer should validate:
-- completeness of requirements against task brief;
-- consistency with project constraints;
-- feasibility of minimal implementation approach for dry run.
+(Детализацию при необходимости вынести в `open_questions.md`.)
