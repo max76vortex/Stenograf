@@ -221,3 +221,42 @@ pause
 - [ ] После первого запуска проверены появления .md в 00_inbox и открытие их в Obsidian.
 
 После этого «всё на компьютере» установлено и связано: записи в своей папке, скрипт в проекте, результат — в Obsidian.
+
+---
+
+## 10. Новые записи с телефона через Google Drive
+
+Если запись сделана на диктофон телефона и загружена в Google Drive, её можно включить в тот же поток:
+
+1. Скачай новые файлы из нужной папки Google Drive в локальную папку, например  
+   `D:\1 ЗАПИСИ ГОЛОС\phone-import\`.
+2. Запусти import-скрипт:
+
+   ```powershell
+   python ingest_phone_recordings.py `
+     "D:\1 ЗАПИСИ ГОЛОС\phone-import" `
+     "D:\1 ЗАПИСИ ГОЛОС\recordings" `
+     --recursive --log-file "D:\1 ЗАПИСИ ГОЛОС\recordings\phone_ingest_log.csv"
+   ```
+
+3. Скрипт сам:
+   - разложит файлы по `recordings\YYYY-MM\`;
+   - нормализует имя в формат `YYYY-MM-DD_NNN_phone-...`;
+   - не создаст дубликаты (sha256 + реестр);
+   - обновит `phone_ingest_log.csv`.
+
+4. Сразу после импорта можно автозапустить транскрибацию в текущий пайплайн:
+
+   ```powershell
+   python ingest_phone_recordings.py `
+     "D:\1 ЗАПИСИ ГОЛОС\phone-import" `
+     "D:\1 ЗАПИСИ ГОЛОС\recordings" `
+     --recursive `
+     --trigger-transcribe `
+     --transcribe-script "C:\Users\sa\N8N-projects\transcription\transcribe_to_obsidian.py" `
+     --inbox-dir "D:\Obsidian\Audio Brain\00_inbox" `
+     --transcribe-asset-root "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
+     --transcribe-recursive
+   ```
+
+После этого новые телефонные записи проходят те же фазы (`00_inbox` → assets → Phase B), что и записи с компьютера.

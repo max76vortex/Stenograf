@@ -21,6 +21,7 @@
 | WS-015 | Phase B: прогон 11 asset-папок (`phase_b_processor`), публикация в `10_processed` | Done | 2026-04-01 | 2026-04-01 | Ollama `gemma3:1b` (RAM ~12.7 ГБ; qwen2.5 не влез / pull timeout); см. `parse_llm_json_response` в `phase_b_processor.py` |
 | WS-016 | Диагностика LM Studio: окно запускается вне видимой области экрана | Done | 2026-04-13 | 2026-04-13 | Проверены процессы/логи; окно возвращено на основной экран через WinAPI (координаты 2157→120) |
 | WS-017 | Phase B OpenAI: убрать `response_format: json_object` для LM Studio (только json_schema/text) | Done | 2026-04-13 | 2026-04-13 | `phase_b_processor.py`; полный `--recursive` на LM Studio дал `timed out` на [1/2] (900 с) — сервер/модель медленные; повторить с `--timeout-sec 1800+` при стабильном LM Studio |
+| WS-018 | Интеграция записей с телефона через Google Drive в общий пайплайн обработки | Done | 2026-04-14 | 2026-04-14 | `transcription/ingest_phone_recordings.py`, README/SETUP; импорт с дедупликацией + опциональный запуск Phase A |
 
 <!-- Новая задача: скопируй строку шаблона ниже, присвой следующий WS-NNN. -->
 

@@ -24,6 +24,46 @@ python transcribe_gui.py
 
 Выбор папок «Обзор…», флаги рекурсии и перезаписи, опционально манифест, **пауза между файлами** (секунды) — чтобы снизить непрерывную нагрузку на GPU. Под капотом вызывается тот же `transcribe_to_obsidian.py`.
 
+## Записи с телефона через Google Drive
+
+Для сценария "диктофон на телефоне -> Google Drive -> этот проект" добавлен скрипт:
+
+```bash
+python ingest_phone_recordings.py --help
+```
+
+Что делает:
+- читает экспорт Google Drive (локальная папка после синка/скачивания);
+- находит новые аудио (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.aac`, `.flac`);
+- раскладывает в `recordings/YYYY-MM/`;
+- приводит имя к формату `YYYY-MM-DD_NNN_phone[-slug].ext`;
+- сохраняет манифест, чтобы не импортировать один и тот же файл повторно.
+
+Пример импорта:
+
+```bash
+python ingest_phone_recordings.py \
+  "D:\GoogleDrive\PhoneRecorder" \
+  "D:\1 ЗАПИСИ ГОЛОС\recordings" \
+  --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\phone_ingest_manifest.json"
+```
+
+Сразу импорт + транскрибация (Phase A asset-flow):
+
+```bash
+python ingest_phone_recordings.py \
+  "D:\GoogleDrive\PhoneRecorder" \
+  "D:\1 ЗАПИСИ ГОЛОС\recordings" \
+  --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\phone_ingest_manifest.json" \
+  --run-transcribe \
+  --transcribe-output "D:\Obsidian\Audio Brain\00_inbox" \
+  --transcribe-asset-root "D:\1 ЗАПИСИ ГОЛОС\audio-work" \
+  --transcribe-recursive \
+  --transcribe-manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv"
+```
+
+Таким образом телефонные записи автоматически попадают в ту же структуру, что и "компьютерные", и дальше проходят обработку по существующим правилам проекта.
+
 ## Требования
 
 - Python 3.10+
