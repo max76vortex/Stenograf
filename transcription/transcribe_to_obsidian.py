@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """
 Транскрибация mp3 в .md для Obsidian vault (00_inbox).
-Использует faster-whisper с моделью large-v3 для максимального качества.
-Требуется GPU с 6+ ГБ VRAM (например RTX 3060).
+
+Бэкенды:
+  --backend local   faster-whisper (GPU/CPU, модель large-v3). По умолчанию.
+  --backend groq    Groq Cloud Whisper API (whisper-large-v3-turbo).
+  --backend openai  OpenAI Whisper / GPT-4o-transcribe API.
+
+Для cloud-бэкендов нужен --api-key (или переменные GROQ_API_KEY / OPENAI_API_KEY).
 """
+import io
 import os
 import sys
 import sysconfig
+import urllib.error
+import urllib.request
 from pathlib import Path
 import argparse
 import json
@@ -14,6 +22,10 @@ import re
 import shutil
 import time
 from datetime import datetime
+
+_GROQ_BASE = "https://api.groq.com/openai/v1"
+_OPENAI_BASE = "https://api.openai.com/v1"
+_CLOUD_FILE_LIMIT_MB = 25
 
 
 def _prepend_nvidia_cublas_bin() -> None:
@@ -29,9 +41,98 @@ def _prepend_nvidia_cublas_bin() -> None:
         pass
 
 
-_prepend_nvidia_cublas_bin()
+def _load_whisper_model(model: str, device: str, compute_type: str):
+    """Lazy import faster-whisper only when backend=local."""
+    _prepend_nvidia_cublas_bin()
+    from faster_whisper import WhisperModel
+    return WhisperModel(model, device=device, compute_type=compute_type)
 
-from faster_whisper import WhisperModel
+
+# ---------------------------------------------------------------------------
+# Cloud ASR helpers (Groq / OpenAI compatible)
+# ---------------------------------------------------------------------------
+
+def _build_multipart(fields: dict[str, str], file_field: str, file_path: Path) -> tuple[bytes, str]:
+    """Build multipart/form-data body from string fields + one file field.
+
+    Returns (body_bytes, content_type_header).
+    """
+    boundary = f"----PythonFormBoundary{os.urandom(8).hex()}"
+    parts: list[bytes] = []
+    for key, value in fields.items():
+        parts.append(
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'
+            f"{value}\r\n".encode()
+        )
+    file_data = file_path.read_bytes()
+    parts.append(
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="{file_field}"; filename="{file_path.name}"\r\n'
+        f"Content-Type: application/octet-stream\r\n\r\n".encode()
+        + file_data
+        + b"\r\n"
+    )
+    parts.append(f"--{boundary}--\r\n".encode())
+    body = b"".join(parts)
+    content_type = f"multipart/form-data; boundary={boundary}"
+    return body, content_type
+
+
+def _cloud_transcribe(
+    audio_path: Path,
+    *,
+    api_base: str,
+    api_key: str,
+    model: str,
+    language: str | None,
+    prompt: str,
+    response_format: str = "json",
+    timeout_sec: int = 300,
+) -> str:
+    """Call OpenAI-compatible /v1/audio/transcriptions (Groq, OpenAI, etc.)."""
+    size_mb = audio_path.stat().st_size / (1024 * 1024)
+    if size_mb > _CLOUD_FILE_LIMIT_MB:
+        raise RuntimeError(
+            f"Файл {audio_path.name} ({size_mb:.1f} MB) превышает лимит API ({_CLOUD_FILE_LIMIT_MB} MB). "
+            f"Сконвертируйте в меньший формат или обрежьте."
+        )
+
+    fields: dict[str, str] = {
+        "model": model,
+        "response_format": response_format,
+    }
+    if language and language != "auto":
+        fields["language"] = language
+    if prompt:
+        fields["prompt"] = prompt
+
+    body, content_type = _build_multipart(fields, "file", audio_path)
+    url = api_base.rstrip("/") + "/audio/transcriptions"
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Content-Type": content_type,
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "transcribe-to-obsidian/1.0",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        err_body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+        raise RuntimeError(f"Cloud ASR HTTP {exc.code}: {err_body[:500]}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Cloud ASR request failed: {exc}") from exc
+
+    if response_format == "text":
+        return raw.strip()
+    data = json.loads(raw)
+    return (data.get("text") or "").strip()
 
 
 def slug(s: str) -> str:
@@ -154,15 +255,62 @@ links: []
     return yaml
 
 
+def _resolve_api_key(args) -> str:
+    """Resolve API key from --api-key flag or environment variables."""
+    if args.api_key:
+        return args.api_key
+    env_map = {"groq": "GROQ_API_KEY", "openai": "OPENAI_API_KEY"}
+    env_var = env_map.get(args.backend, "")
+    key = os.environ.get(env_var, "")
+    if not key:
+        raise SystemExit(
+            f"Для --backend {args.backend} нужен API-ключ: "
+            f"передайте --api-key KEY или установите переменную {env_var}"
+        )
+    return key
+
+
+def _default_cloud_model(backend: str) -> str:
+    if backend == "groq":
+        return "whisper-large-v3"
+    return "whisper-1"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Transcribe mp3 files to Markdown for Obsidian 00_inbox (faster-whisper)."
+        description="Transcribe audio files to Markdown for Obsidian 00_inbox."
     )
     ap.add_argument("input_dir", type=Path, help="Папка с .mp3 (или корень с подпапками при --recursive)")
     ap.add_argument("output_dir", type=Path, help="Папка для .md (например vault/00_inbox)")
-    ap.add_argument("--model", default="large-v3", help="Модель faster-whisper (default: large-v3)")
-    ap.add_argument("--device", default="cuda", choices=("cuda", "cpu"))
-    ap.add_argument("--compute-type", default="float16", help="float16 для 6GB VRAM")
+
+    # --- Backend selection ---
+    ap.add_argument(
+        "--backend",
+        default="local",
+        choices=("local", "groq", "openai"),
+        help="ASR-бэкенд: local (faster-whisper, default), groq (Groq Cloud), openai (OpenAI API)",
+    )
+    ap.add_argument(
+        "--api-key",
+        default="",
+        help="API-ключ для cloud-бэкенда (или переменные GROQ_API_KEY / OPENAI_API_KEY)",
+    )
+    ap.add_argument(
+        "--api-base-url",
+        default="",
+        help="Базовый URL cloud API (по умолчанию: стандартный для выбранного бэкенда)",
+    )
+    ap.add_argument(
+        "--api-timeout",
+        type=int,
+        default=300,
+        help="Таймаут HTTP-запроса к cloud API в секундах (default: 300)",
+    )
+
+    # --- Model & local device ---
+    ap.add_argument("--model", default="", help="Модель ASR (default: large-v3 для local, whisper-large-v3 для groq, whisper-1 для openai)")
+    ap.add_argument("--device", default="cuda", choices=("cuda", "cpu"), help="Устройство для local-бэкенда")
+    ap.add_argument("--compute-type", default="float16", help="float16 для 6GB VRAM (только local)")
     ap.add_argument("--language", default="ru", help="Язык (ru, auto, ...)")
     ap.add_argument("--overwrite", action="store_true", help="Перезаписывать существующие .md")
     ap.add_argument("--recursive", action="store_true", help="Обходить подпапки (recordings/2024-01, 2024-02, ...)")
@@ -197,24 +345,45 @@ def main() -> None:
         action="store_true",
         help="В режиме --asset-root не публиковать transcript в output_dir (00_inbox).",
     )
-    ap.add_argument("--beam-size", type=int, default=5, help="Beam size for decoding (default: 5)")
-    ap.add_argument("--best-of", type=int, default=5, help="Best-of candidates (default: 5)")
+    ap.add_argument("--beam-size", type=int, default=5, help="Beam size for decoding (только local, default: 5)")
+    ap.add_argument("--best-of", type=int, default=5, help="Best-of candidates (только local, default: 5)")
     ap.add_argument("--temperature", type=float, default=0.0, help="Decoding temperature (default: 0.0)")
-    ap.add_argument("--vad-filter", action="store_true", help="Use VAD filtering before decoding")
-    ap.add_argument("--initial-prompt", default="", help="Optional initial prompt for model context")
+    ap.add_argument("--vad-filter", action="store_true", help="Use VAD filtering before decoding (только local)")
+    ap.add_argument("--initial-prompt", default="", help="Prompt/контекст для модели (local и cloud)")
     ap.add_argument(
         "--min-text-chars-retry",
         type=int,
         default=0,
         metavar="N",
-        help="If transcript shorter than N chars, retry once with language=auto and VAD off",
+        help="If transcript shorter than N chars, retry once with language=auto and VAD off (только local)",
     )
     ap.add_argument(
         "--existing-asset",
         action="store_true",
         help="input_dir — уже существующая папка ассета: пишет 01_transcript__inbox.md + inbox; без копирования/переноса",
     )
+    ap.add_argument(
+        "--preset",
+        choices=("quality",),
+        default=None,
+        help="Пресет параметров. quality: --vad-filter --language auto "
+             '--initial-prompt "..." --min-text-chars-retry 50 (если не заданы явно)',
+    )
     args = ap.parse_args()
+
+    if args.preset == "quality":
+        if not args.vad_filter:
+            args.vad_filter = True
+        if args.language == "ru":
+            args.language = "auto"
+        if not args.initial_prompt:
+            args.initial_prompt = "Это запись мыслей и идей на русском языке."
+        if args.min_text_chars_retry == 0:
+            args.min_text_chars_retry = 50
+        print(f"[preset=quality] vad_filter=True, language={args.language}, "
+              f"min_text_chars_retry={args.min_text_chars_retry}")
+
+    use_cloud = args.backend in ("groq", "openai")
 
     if args.existing_asset and args.asset_root:
         raise SystemExit("Нельзя использовать одновременно --existing-asset и --asset-root")
@@ -259,8 +428,21 @@ def main() -> None:
     if args.copy_source and args.move_source:
         raise SystemExit("Нельзя использовать одновременно --copy-source и --move-source")
 
-    print(f"Загрузка модели {args.model} ({args.device}, {args.compute_type})...")
-    model = WhisperModel(args.model, device=args.device, compute_type=args.compute_type)
+    # --- Resolve model name and load / validate ---
+    effective_model = args.model or ("large-v3" if not use_cloud else _default_cloud_model(args.backend))
+
+    cloud_api_key = ""
+    cloud_api_base = ""
+    whisper_model = None
+
+    if use_cloud:
+        cloud_api_key = _resolve_api_key(args)
+        cloud_api_base = args.api_base_url or (_GROQ_BASE if args.backend == "groq" else _OPENAI_BASE)
+        print(f"Cloud ASR: backend={args.backend}, model={effective_model}, base={cloud_api_base}")
+    else:
+        print(f"Загрузка модели {effective_model} ({args.device}, {args.compute_type})...")
+        whisper_model = _load_whisper_model(effective_model, args.device, args.compute_type)
+
     print(f"Обработка {len(audio_files)} файлов -> {output_dir}")
 
     manifest_file = None
@@ -346,9 +528,10 @@ def main() -> None:
 
         print(f"[{i}/{len(audio_files)}] {source_audio_for_model.name} ...")
 
-        def do_transcribe(lang: str | None, vad_enabled: bool) -> str:
+        def do_transcribe_local(lang: str | None, vad_enabled: bool) -> str:
+            effective_lang = None if (lang is None or lang == "auto") else lang
             kwargs = {
-                "language": lang,
+                "language": effective_lang,
                 "beam_size": args.beam_size,
                 "best_of": args.best_of,
                 "temperature": args.temperature,
@@ -356,15 +539,29 @@ def main() -> None:
             }
             if args.initial_prompt:
                 kwargs["initial_prompt"] = args.initial_prompt
-            segments, _info = model.transcribe(str(source_audio_for_model), **kwargs)
+            segments, _info = whisper_model.transcribe(str(source_audio_for_model), **kwargs)
             return "\n".join(s.text.strip() for s in segments if s.text.strip())
 
-        text = do_transcribe(args.language, args.vad_filter)
-        if args.min_text_chars_retry > 0 and len(text.strip()) < args.min_text_chars_retry:
-            print(f"  ! short transcript ({len(text.strip())} chars), retry with language=auto/vad=off")
-            retry_text = do_transcribe(None, False)
-            if len(retry_text.strip()) > len(text.strip()):
-                text = retry_text
+        def do_transcribe_cloud(lang: str | None) -> str:
+            return _cloud_transcribe(
+                source_audio_for_model,
+                api_base=cloud_api_base,
+                api_key=cloud_api_key,
+                model=effective_model,
+                language=lang,
+                prompt=args.initial_prompt,
+                timeout_sec=args.api_timeout,
+            )
+
+        if use_cloud:
+            text = do_transcribe_cloud(args.language)
+        else:
+            text = do_transcribe_local(args.language, args.vad_filter)
+            if args.min_text_chars_retry > 0 and len(text.strip()) < args.min_text_chars_retry:
+                print(f"  ! short transcript ({len(text.strip())} chars), retry with language=auto/vad=off")
+                retry_text = do_transcribe_local(None, False)
+                if len(retry_text.strip()) > len(text.strip()):
+                    text = retry_text
         if not text.strip():
             if args.existing_asset and meta.get("audio_file"):
                 title = slug(Path(str(meta["audio_file"])).stem)
