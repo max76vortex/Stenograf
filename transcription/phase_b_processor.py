@@ -123,27 +123,52 @@ def default_llm_payload(
     style_examples_text: str,
 ) -> str:
     return (
-        "Ты редактор русскоязычных транскриптов.\n"
-        "Работай в стиле автора из STYLE_PROFILE и STYLE_EXAMPLES. "
-        "Соблюдай чеклист EDITING_CHECKLIST как обязательный стандарт качества.\n"
-        "Верни ТОЛЬКО JSON-объект (без markdown) со схемой:\n"
-        '{'
-        '"title":"...",'
-        '"clean_text":"...",'
-        '"summary":"...",'
-        '"category":"idea|article|project",'
-        '"tags":["tag1","tag2"],'
-        '"needs_review":true|false,'
-        '"review_reason":"..."'
-        '}\n'
-        "Правила:\n"
-        "- Сохраняй смысл оригинала, не выдумывай фактов.\n"
-        "- Исправь пунктуацию и очевидные ASR-ошибки.\n"
-        "- category=idea для зарисовок, article для наброска публикации, project для задач/планов проекта.\n\n"
+        "Ты — редактор русскоязычных транскриптов диктофонных записей.\n\n"
+        "## Задача\n"
+        "Получаешь сырой ASR-транскрипт (автоматическое распознавание речи). "
+        "Нужно:\n"
+        "1. **Очистить текст** (clean_text): исправить ASR-ошибки, пунктуацию, "
+        "убрать повторы и слова-паразиты, разбить на абзацы. "
+        "Сохранить ВСЕ факты и мысли автора, ничего не придумывать.\n"
+        "2. **Придумать заголовок** (title): 3-8 слов, отражает ключевую мысль.\n"
+        "3. **Написать резюме** (summary): 2-5 буллетов с практической пользой.\n"
+        "4. **Классифицировать** (category):\n"
+        "   - idea — короткая мысль, зарисовка, заметка на будущее\n"
+        "   - article — есть структура, тезисы, задел под публикацию\n"
+        "   - project — задача/план с шагами, сроками, контекстом\n"
+        "5. **Теги** (tags): 2-5 тематических тегов.\n"
+        "6. **needs_review**: true если текст неоднозначен, ASR сильно искажён "
+        "или уверенность низкая.\n\n"
+        "## Формат ответа\n"
+        "Верни ТОЛЬКО JSON (без markdown-обёртки, без пояснений):\n"
+        '{"title":"...","clean_text":"...","summary":"...","category":"idea|article|project",'
+        '"tags":["tag1","tag2"],"needs_review":true|false,"review_reason":"..."}\n\n'
+        "## Пример\n"
+        "Транскрипт:\n"
+        "ну вот я думаю что нужно сделать такую штуку значит берём записи "
+        "с диктофона и прогоняем через вискер получаем текст потом этот текст "
+        "чистим через LLM и раскидываем по категориям идеи отдельно статьи "
+        "отдельно проекты отдельно и потом уже из идей можно делать статьи "
+        "а из статей публиковать в гост\n\n"
+        "Ответ:\n"
+        '{"title":"Пайплайн: диктофон → текст → публикация",'
+        '"clean_text":"Идея пайплайна: записи с диктофона прогоняются через Whisper, '
+        "получается текст. Затем текст чистится через LLM и раскидывается по категориям: "
+        "идеи, статьи, проекты. Из идей потом можно формировать статьи, "
+        'а готовые статьи публиковать в Ghost.",'
+        '"summary":"- Пайплайн: диктофон → Whisper → LLM-очистка → категоризация\\n'
+        "- Три категории: идеи, статьи, проекты\\n"
+        '- Идеи → статьи → Ghost (публикация)",'
+        '"category":"idea",'
+        '"tags":["пайплайн","транскрибация","ghost","автоматизация"],'
+        '"needs_review":false,'
+        '"review_reason":""}\n\n'
+        "## Стиль автора\n"
         f"STYLE_PROFILE:\n{style_profile_text}\n\n"
         f"EDITING_CHECKLIST:\n{editing_checklist_text}\n\n"
-        f"STYLE_EXAMPLES:\n{style_examples_text or '(пока нет примеров)'}\n\n"
-        f"Транскрипт:\n{transcript}\n"
+        f"STYLE_EXAMPLES:\n{style_examples_text or '(пока нет примеров авторского стиля)'}\n\n"
+        "## Транскрипт для обработки\n"
+        f"{transcript}\n"
     )
 
 
@@ -324,6 +349,7 @@ def process_asset(
     backend: str = "ollama",
     openai_base_url: str = "http://127.0.0.1:1234/v1",
     api_key: str = "",
+    min_transcript_chars: int = 30,
 ) -> tuple[bool, str]:
     transcript_path = asset_dir / "01_transcript__inbox.md"
     if not transcript_path.exists():
@@ -334,6 +360,8 @@ def process_asset(
     transcript = extract_transcript(body)
     if not transcript:
         return False, "skip: transcript section is empty"
+    if len(transcript.strip()) < min_transcript_chars:
+        return False, f"skip: transcript too short ({len(transcript.strip())} chars < {min_transcript_chars})"
 
     prompt = default_llm_payload(
         transcript=transcript,
@@ -524,6 +552,13 @@ def main() -> None:
         action="store_true",
         help="Рекурсивно искать asset-папки (по наличию 01_transcript__inbox.md).",
     )
+    ap.add_argument(
+        "--min-transcript-chars",
+        type=int,
+        default=30,
+        metavar="N",
+        help="Пропускать транскрипты короче N символов (не тратить вызов LLM на мусор, default: 30)",
+    )
     args = ap.parse_args()
 
     root = args.asset_root.resolve()
@@ -610,6 +645,7 @@ def main() -> None:
             backend=args.backend,
             openai_base_url=args.openai_base_url,
             api_key=resolved_api_key,
+            min_transcript_chars=args.min_transcript_chars,
         )
         if message.startswith("ok:"):
             ok_count += 1

@@ -242,22 +242,29 @@ python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
 ### Cloud LLM (OpenAI, Groq и др.)
 
 ```powershell
-# OpenAI GPT-4o-mini (дёшево и качественно)
-set OPENAI_API_KEY=sk-ваш_ключ
-python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
-  --recursive --vault-dir "D:\Obsidian\Audio Brain" `
-  --backend openai --openai-base-url "https://api.openai.com/v1" `
-  --model "gpt-4o-mini" --api-key "%OPENAI_API_KEY%"
-
-# Groq (бесплатный лимит)
+# Groq (бесплатный лимит, быстро, хорошее качество)
 python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
   --recursive --vault-dir "D:\Obsidian\Audio Brain" `
   --backend openai --openai-base-url "https://api.groq.com/openai/v1" `
   --model "llama-3.3-70b-versatile" --api-key "gsk_ваш_ключ"
+
+# OpenAI GPT-4o-mini (дёшево и качественно, ~$0.01 на транскрипт)
+python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
+  --recursive --vault-dir "D:\Obsidian\Audio Brain" `
+  --backend openai --openai-base-url "https://api.openai.com/v1" `
+  --model "gpt-4o-mini" --api-key "sk-ваш_ключ"
 ```
+
+**Пропуск мусорных транскриптов:**
+
+`--min-transcript-chars 30` (default) — транскрипты короче 30 символов пропускаются без вызова LLM. Для строгой фильтрации: `--min-transcript-chars 100`.
 
 Если LLM временно недоступна:
 
 ```powershell
 python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" --recursive --vault-dir "D:\Obsidian\Audio Brain" --allow-heuristic-fallback
 ```
+
+### Примеры авторского стиля
+
+Для лучшего качества Phase B добавьте 3–10 примеров вашего финального текста в `transcription/style/examples/` (см. `TEMPLATE.md` в этой папке). Модель использует их для калибровки стиля и тона.
