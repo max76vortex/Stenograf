@@ -116,6 +116,7 @@ def _cloud_transcribe(
         headers={
             "Content-Type": content_type,
             "Authorization": f"Bearer {api_key}",
+            "User-Agent": "transcribe-to-obsidian/1.0",
         },
         method="POST",
     )
@@ -271,7 +272,7 @@ def _resolve_api_key(args) -> str:
 
 def _default_cloud_model(backend: str) -> str:
     if backend == "groq":
-        return "whisper-large-v3-turbo"
+        return "whisper-large-v3"
     return "whisper-1"
 
 
@@ -307,7 +308,7 @@ def main() -> None:
     )
 
     # --- Model & local device ---
-    ap.add_argument("--model", default="", help="Модель ASR (default: large-v3 для local, whisper-large-v3-turbo для groq, whisper-1 для openai)")
+    ap.add_argument("--model", default="", help="Модель ASR (default: large-v3 для local, whisper-large-v3 для groq, whisper-1 для openai)")
     ap.add_argument("--device", default="cuda", choices=("cuda", "cpu"), help="Устройство для local-бэкенда")
     ap.add_argument("--compute-type", default="float16", help="float16 для 6GB VRAM (только local)")
     ap.add_argument("--language", default="ru", help="Язык (ru, auto, ...)")

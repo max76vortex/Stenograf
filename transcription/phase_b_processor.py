@@ -202,7 +202,10 @@ def call_openai_compatible_json(
 
     def _post(p: dict) -> str:
         data = json.dumps(p).encode("utf-8")
-        headers: dict[str, str] = {"Content-Type": "application/json"}
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "User-Agent": "phase-b-processor/1.0",
+        }
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         req = urllib.request.Request(

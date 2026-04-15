@@ -5,7 +5,7 @@
 | Бэкенд | Флаг | Модель по умолчанию | Требования |
 |--------|------|---------------------|------------|
 | **faster-whisper** (локальный) | `--backend local` (default) | `large-v3` | GPU 6+ ГБ VRAM или `--device cpu` |
-| **Groq Cloud** | `--backend groq` | `whisper-large-v3-turbo` | API-ключ (`GROQ_API_KEY`) |
+| **Groq Cloud** | `--backend groq` | `whisper-large-v3` | API-ключ (`GROQ_API_KEY`) |
 | **OpenAI API** | `--backend openai` | `whisper-1` | API-ключ (`OPENAI_API_KEY`) |
 
 **Полная установка на компьютере (что ставить, куда класть, как запускать):** см. **[SETUP.md](SETUP.md)**.
