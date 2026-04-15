@@ -1,6 +1,12 @@
 # Транскрибация аудио → Obsidian
 
-Пайплайн на **faster-whisper** с моделью **large-v3** для максимального качества. Результат — `.md` с frontmatter под vault Audio Brain (папка `00_inbox`).
+Пайплайн транскрибации с тремя бэкендами на выбор. Результат — `.md` с frontmatter под vault Audio Brain (папка `00_inbox`).
+
+| Бэкенд | Флаг | Модель по умолчанию | Требования |
+|--------|------|---------------------|------------|
+| **faster-whisper** (локальный) | `--backend local` (default) | `large-v3` | GPU 6+ ГБ VRAM или `--device cpu` |
+| **Groq Cloud** | `--backend groq` | `whisper-large-v3-turbo` | API-ключ (`GROQ_API_KEY`) |
+| **OpenAI API** | `--backend openai` | `whisper-1` | API-ключ (`OPENAI_API_KEY`) |
 
 **Полная установка на компьютере (что ставить, куда класть, как запускать):** см. **[SETUP.md](SETUP.md)**.
 
@@ -27,8 +33,8 @@ python transcribe_gui.py
 ## Требования
 
 - Python 3.10+
-- GPU NVIDIA с 6+ ГБ VRAM (RTX 3060 подходит; large-v3 в fp16 ~4.5 ГБ)
-- CUDA и cuDNN (для `device=cuda`)
+- **Для local-бэкенда:** GPU NVIDIA с 6+ ГБ VRAM (RTX 3060 подходит; large-v3 в fp16 ~4.5 ГБ), CUDA и cuDNN (для `device=cuda`)
+- **Для cloud-бэкендов (groq/openai):** только API-ключ, GPU не нужен. Лимит файла — 25 МБ.
 
 ## Установка
 
@@ -39,7 +45,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-При первом запуске модель `large-v3` скачается автоматически (несколько ГБ).
+При первом запуске **local-бэкенда** модель `large-v3` скачается автоматически (несколько ГБ).
+Для cloud-бэкендов скачивание модели не требуется.
 
 ---
 
@@ -77,26 +84,53 @@ recordings/
 
 ## Использование
 
+### Локальный бэкенд (faster-whisper, по умолчанию)
+
 ```bash
 # Одна папка (например месяц)
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox"
 
-# Вся папка записей рекурсивно (все подпапки 2024-01, 2024-02, …)
+# Рекурсивно все подпапки
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\Audio Brain\00_inbox" --recursive
 
+# С VAD-фильтром и авто-языком (рекомендуется для сложного аудио)
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --vad-filter --language auto --initial-prompt "Запись мыслей на русском языке"
+```
+
+### Groq Cloud (бесплатный лимит: ~2 ч аудио/день)
+
+```bash
+# Через переменную окружения
+set GROQ_API_KEY=gsk_ваш_ключ
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --backend groq
+
+# Или через флаг
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --backend groq --api-key "gsk_ваш_ключ"
+
+# Рекурсивно + asset-flow
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\Audio Brain\00_inbox" --backend groq --recursive --asset-root "D:\1 ЗАПИСИ ГОЛОС\audio-work"
+```
+
+### OpenAI API
+
+```bash
+set OPENAI_API_KEY=sk-ваш_ключ
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --backend openai
+
+# С моделью gpt-4o-transcribe (лучше whisper-1, но дороже)
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --backend openai --model gpt-4o-transcribe
+```
+
+### Общие примеры
+
+```bash
 # С логом обработанных (манифест)
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv"
 
 # Перезапись уже существующих .md
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --overwrite
 
-# Язык авто
-python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --language auto
-
-# Новый режим Phase A (asset-flow):
-# - переносит исходник в asset-папку
-# - создаёт 01_transcript__inbox.md + meta.json
-# - публикует копию transcript в 00_inbox
+# Режим Phase A (asset-flow)
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\Audio Brain\00_inbox" --recursive --asset-root "D:\1 ЗАПИСИ ГОЛОС\audio-work"
 ```
 
@@ -104,10 +138,17 @@ python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\O
 
 - `input_dir` — каталог с `.mp3` (или корень при `--recursive`).
 - `output_dir` — каталог для `.md` (например `D:\Obsidian\Audio Brain\00_inbox`).
+- `--backend {local,groq,openai}` — ASR-бэкенд (default: `local`).
+- `--api-key KEY` — API-ключ для cloud-бэкенда (или переменные `GROQ_API_KEY` / `OPENAI_API_KEY`).
+- `--api-base-url URL` — кастомный базовый URL cloud API.
+- `--api-timeout SEC` — таймаут HTTP-запроса к cloud API (default: 300 сек).
 - `--recursive` — обходить все подпапки; имена .md включают путь (напр. `2024-01_2024-01-15_001.md`), чтобы не было коллизий.
 - `--manifest FILE` — дописывать в CSV лог: timestamp, путь к mp3, имя .md, дата из frontmatter.
 - `--sleep-between-seconds SEC` — пауза после каждого **успешно** обработанного файла (0 по умолчанию); помогает разгрузить GPU/диск при длинных ночных прогонах.
-- `--model`, `--device`, `--compute-type`, `--language` — как раньше.
+- `--model` — модель ASR (default зависит от бэкенда: `large-v3` / `whisper-large-v3-turbo` / `whisper-1`).
+- `--device`, `--compute-type` — только для `--backend local`.
+- `--language` — язык (ru, auto, ...).
+- `--initial-prompt` — контекст для модели (работает с local и cloud).
 - `--overwrite` — перезаписывать существующие .md.
 - `--asset-root DIR` — включает asset-режим: создаёт asset-папки (`YYYY-MM-DD_NNN_slug__src-YYYYMMDD`), пишет `01_transcript__inbox.md` и `meta.json`.
 - `--move-source` / `--copy-source` — в asset-режиме переместить (default) или копировать исходник в asset-папку.
@@ -169,6 +210,23 @@ python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
   --style-profile "D:\my-style\style_profile.md" `
   --editing-checklist "D:\my-style\editing_checklist.md" `
   --style-examples-dir "D:\my-style\examples"
+```
+
+### Cloud LLM (OpenAI, Groq и др.)
+
+```powershell
+# OpenAI GPT-4o-mini (дёшево и качественно)
+set OPENAI_API_KEY=sk-ваш_ключ
+python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
+  --recursive --vault-dir "D:\Obsidian\Audio Brain" `
+  --backend openai --openai-base-url "https://api.openai.com/v1" `
+  --model "gpt-4o-mini" --api-key "%OPENAI_API_KEY%"
+
+# Groq (бесплатный лимит)
+python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
+  --recursive --vault-dir "D:\Obsidian\Audio Brain" `
+  --backend openai --openai-base-url "https://api.groq.com/openai/v1" `
+  --model "llama-3.3-70b-versatile" --api-key "gsk_ваш_ключ"
 ```
 
 Если LLM временно недоступна:

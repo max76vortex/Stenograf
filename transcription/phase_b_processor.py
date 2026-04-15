@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import urllib.error
@@ -189,11 +190,10 @@ def call_openai_compatible_json(
     model: str,
     base_url: str,
     timeout_sec: int,
+    api_key: str = "",
 ) -> dict:
-    """OpenAI-совместимый чат (LM Studio, vLLM и т.д.): POST .../v1/chat/completions."""
+    """OpenAI-совместимый чат (LM Studio, vLLM, OpenAI, Groq и т.д.): POST .../v1/chat/completions."""
     url = base_url.rstrip("/") + "/chat/completions"
-    # Не используем json_object: LM Studio и часть OpenAI-совместимых серверов
-    # принимают только json_schema или text; без поля — обычный текст, парсим в parse_llm_json_response.
     payload: dict = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -202,10 +202,13 @@ def call_openai_compatible_json(
 
     def _post(p: dict) -> str:
         data = json.dumps(p).encode("utf-8")
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         req = urllib.request.Request(
             url,
             data=data,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
@@ -317,6 +320,7 @@ def process_asset(
     *,
     backend: str = "ollama",
     openai_base_url: str = "http://127.0.0.1:1234/v1",
+    api_key: str = "",
 ) -> tuple[bool, str]:
     transcript_path = asset_dir / "01_transcript__inbox.md"
     if not transcript_path.exists():
@@ -349,6 +353,7 @@ def process_asset(
                 model,
                 openai_base_url,
                 timeout_sec,
+                api_key=api_key,
             )
         else:
             raise RuntimeError(f"unknown backend: {backend}")
@@ -465,6 +470,11 @@ def main() -> None:
         help="Базовый URL OpenAI API (LM Studio по умолчанию: .../v1)",
     )
     ap.add_argument(
+        "--api-key",
+        default="",
+        help="API-ключ для cloud LLM (OpenAI, Groq и др.). Или переменная OPENAI_API_KEY",
+    )
+    ap.add_argument(
         "--timeout-sec",
         type=int,
         default=120,
@@ -563,6 +573,8 @@ def main() -> None:
             raise SystemExit("Флаги --cpu-only / --ollama-num-gpu только для --backend ollama")
         ollama_options = None
 
+    resolved_api_key = args.api_key or os.environ.get("OPENAI_API_KEY", "")
+
     ok_count = 0
     skip_count = 0
     err_count = 0
@@ -594,6 +606,7 @@ def main() -> None:
             ollama_options=ollama_options,
             backend=args.backend,
             openai_base_url=args.openai_base_url,
+            api_key=resolved_api_key,
         )
         if message.startswith("ok:"):
             ok_count += 1
