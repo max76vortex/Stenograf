@@ -51,13 +51,22 @@ source transcription/.venv/bin/activate
 Key commands (see `transcription/README.md` for full usage):
 
 - `python transcribe_to_obsidian.py --help` — Phase A transcription
-- `python phase_b_processor.py --help` — Phase B LLM processing
+- `phase-b-process` skill — Phase B text processing (Kimi in Cursor, project-only)
+- `python transcription_limit_dispatcher.py --help` — batching under free transcription limits
 - `python check_coverage.py --help` — check which mp3s lack transcripts
 
 **Caveats:**
 - Phase A (`transcribe_to_obsidian.py`) requires `faster-whisper` and downloads the large-v3 model (~3 GB) on first real run. The `--help` flag does not trigger the download.
 - Phase A requires a GPU with 6+ GB VRAM for `--device cuda`; use `--device cpu` in environments without a GPU (much slower).
-- Phase B (`phase_b_processor.py`) requires a running Ollama (port 11434) or LM Studio (port 1234) instance. These are external services not included in the repo.
+- Phase B in this repo is fixed to the local skill `.cursor/skills/phase-b-process/SKILL.md` and should not fall back to Ollama/LM Studio scripts.
+
+### Project-bound skills
+
+- Skills in `.cursor/skills/` are scoped to this repository (`C:\Users\sa\N8N-projects`) and should not be reused in other projects by default.
+- Current transcription skills:
+  - `.cursor/skills/phase-b-process/SKILL.md` — **the only allowed Phase B path** (model: Kimi).
+  - `.cursor/skills/memory-bank-init/SKILL.md` — memory-bank bootstrap/update helper.
+  - `.cursor/skills/workspace-activity-report/SKILL.md` — activity reporting for this workspace.
 
 ### No linting or automated tests
 

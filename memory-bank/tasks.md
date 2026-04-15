@@ -3,9 +3,9 @@
 **Учёт задач workspace:** каждая значимая задача — ID **`WS-NNN`** и строка в **`memory-bank/task-registry.md`**; правила — **`memory-bank/task-tracking.md`**. В `progress.md` при закрытии указывай `[WS-NNN]`.
 
 ## Current Task
-- Status: PLANNING → BUILD (фаза B)
+- Status: BUILD (Phase B Kimi + лимитный батчинг Phase A)
 - Complexity: 3
-- Description: **Пайплайн после транскрибации** (подготовка текста, классификация, `10_processed`) + детализация сквозного процесса Audio Brain. Дизайн: **`memory-bank/creative/creative-post-transcription-pipeline.md`**. Реализация документации и зеркала в vault — **`WS-012`**.
+- Description: Зафиксировать **единственный** путь Phase B через skill `phase-b-process` (Kimi), убрать legacy-альтернативы из рабочих инструкций и внедрить батч-диспетчер под бесплатные лимиты распознавания.
 
 ---
 

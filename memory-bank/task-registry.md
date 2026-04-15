@@ -23,6 +23,9 @@
 | WS-017 | Phase B OpenAI: убрать `response_format: json_object` для LM Studio (только json_schema/text) | Done | 2026-04-13 | 2026-04-13 | `phase_b_processor.py`; полный `--recursive` на LM Studio дал `timed out` на [1/2] (900 с) — сервер/модель медленные; повторить с `--timeout-sec 1800+` при стабильном LM Studio |
 | WS-018 | Интеграция записей с телефона через Google Drive в общий пайплайн обработки | Done | 2026-04-14 | 2026-04-14 | `transcription/ingest_phone_recordings.py`, README/SETUP; импорт с дедупликацией + опциональный запуск Phase A |
 | WS-019 | Старт мультиагентного прогона: preflight и определение контекста нового/текущего run | Open | 2026-04-15 | | MAS: pending решение пользователя (продолжить текущий run или стартовать новый) |
+| WS-020 | Реальный прогон phone-ingest (вариант из облака) в `recordings` | Done | 2026-04-15 | 2026-04-15 | `ingest_phone_recordings.py --source-dir \"D:\\1 ЗАПИСИ ГОЛОС\\1 Диктофон_\" --recordings-dir \"D:\\1 ЗАПИСИ ГОЛОС\\recordings\" --recursive --copy`; импортировано 1304, пропущено 0, manifest: `phone_ingest_manifest.csv` |
+| WS-021 | Phase B по новому skill `phase-b-process` + сравнение с предыдущей версией | Done | 2026-04-15 | 2026-04-15 | Подтянут `.cursor/skills/phase-b-process/SKILL.md` из `origin/curs/cloud-asr-api-2f61`; переработан asset `2017-01-26...`: обновлены `02_clean__review.md`, `03_content__article.md`, `meta.json` (`llm_backend=cursor`, `needs_review=true`) |
+| WS-022 | Закрепление единого Phase B (Kimi) + лимитный батчинг транскрибации | Done | 2026-04-15 | 2026-04-15 | Обновлены skill/rules/docs, `phase_b_processor.py` переведён в deprecated-mode, добавлены `transcription_limit_dispatcher.py` и `transcription/FREE_LIMITS.md` |
 
 <!-- Новая задача: скопируй строку шаблона ниже, присвой следующий WS-NNN. -->
 

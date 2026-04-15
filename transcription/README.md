@@ -171,48 +171,47 @@ python check_coverage.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\
 
 ---
 
-## Фаза B (MVP): LLM-first обработка и классификация asset-папок
+## Фаза B (основной и единственный путь в проекте)
 
-Скрипт: `phase_b_processor.py`
+Phase B выполняется только через skill:
 
-Что делает:
+- `.cursor/skills/phase-b-process/SKILL.md`
+- модель: **Kimi** (`kimi-k2.5`)
+- backend в `meta.json`: `llm_backend: cursor`
+
+Что делает skill:
 - читает `01_transcript__inbox.md` в asset-папке;
 - создаёт `02_clean__review.md`;
 - создаёт `03_content__idea.md` / `03_content__article.md` / `03_content__project.md`;
-- обновляет `meta.json`;
-- опционально публикует результат в `10_processed/*` vault.
+- обновляет `meta.json` с новой версией и полями `llm_model`/`llm_backend`.
 
-Пример:
+Важно:
+- старые варианты через Ollama/LM Studio больше не используются в этом проекте;
+- `phase_b_processor.py` оставлен только для архива и совместимости, но не является рабочим путём.
+
+## Батчинг под бесплатные лимиты транскрибации (Phase A)
+
+Для планового распознавания по квотам используй:
 
 ```powershell
-python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" --recursive --vault-dir "D:\Obsidian\Audio Brain" --model "qwen2.5:32b"
+python transcription_limit_dispatcher.py --help
 ```
 
-По умолчанию **`options.num_gpu` не задаётся** — Ollama сам выбирает слои на GPU. Явное большое значение (раньше 999) у части моделей ломало загрузку. Нужен только CPU: **`--cpu-only`**; своё число слоёв: **`--ollama-num-gpu N`**.
+Подробно про лимиты и откуда цифры: **[FREE_LIMITS.md](FREE_LIMITS.md)**.
 
-**GPU / VRAM / LM Studio:** см. **[GPU-Ollama-LMStudio.md](GPU-Ollama-LMStudio.md)** (`curl /api/ps` и поле `size_vram`, альтернатива **`--backend openai`** для LM Studio на порту 1234).
+Скрипт:
+- берёт очередь из `recordings/`;
+- формирует партии по лимитам (по умолчанию профиль Groq Free Whisper);
+- после исчерпания окна ждёт reset и запускает следующий батч автоматически (`--watch`).
 
-Рекомендуемая quality-first конфигурация:
-- модель: `qwen2.5:32b`
-- стиль: `transcription/style/style_profile.md`
-- редакторский чеклист: `transcription/style/editing_checklist.md`
-- примеры твоего голоса: `transcription/style/examples/*.md`
-- хранилище моделей (Ollama/LM Studio): `D:\LLM_models` (как локальный стандарт папки)
-
-Кастомные пути к style/checklist:
+Пример непрерывного режима:
 
 ```powershell
-python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
+python transcription_limit_dispatcher.py `
+  --input-dir "D:\1 ЗАПИСИ ГОЛОС\recordings" `
+  --output-dir "D:\Obsidian\Audio Brain\00_inbox" `
+  --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv" `
+  --asset-root "D:\1 ЗАПИСИ ГОЛОС\audio-work" `
   --recursive `
-  --vault-dir "D:\Obsidian\Audio Brain" `
-  --model "qwen2.5:32b" `
-  --style-profile "D:\my-style\style_profile.md" `
-  --editing-checklist "D:\my-style\editing_checklist.md" `
-  --style-examples-dir "D:\my-style\examples"
-```
-
-Если LLM временно недоступна:
-
-```powershell
-python phase_b_processor.py "D:\1 ЗАПИСИ ГОЛОС\audio-work" --recursive --vault-dir "D:\Obsidian\Audio Brain" --allow-heuristic-fallback
+  --watch
 ```

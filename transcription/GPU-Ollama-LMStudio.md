@@ -1,4 +1,7 @@
-# GPU: Ollama и LM Studio (Phase B)
+# GPU: Ollama и LM Studio (архив)
+
+> Архивный документ. В проекте `N8N-projects` рабочий Phase B выполняется только через skill
+> `.cursor/skills/phase-b-process/SKILL.md` (Kimi в Cursor). Этот файл сохранён только как исторочная заметка.
 
 ## Проверить, использует ли Ollama видеопамять
 

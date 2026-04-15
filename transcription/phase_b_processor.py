@@ -609,5 +609,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(
+        "phase_b_processor.py deprecated in this project. "
+        "Use .cursor/skills/phase-b-process/SKILL.md (Kimi) for Phase B."
+    )
 

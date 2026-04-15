@@ -1,0 +1,21 @@
+# Project Skill Scope (`N8N-projects`)
+
+Применяется только в этом репозитории `C:\Users\sa\N8N-projects`.
+
+## Разрешённые project-specific skills
+
+- `.cursor/skills/phase-b-process/SKILL.md` — единственный путь для Phase B.
+- `.cursor/skills/memory-bank-init/SKILL.md`
+- `.cursor/skills/workspace-activity-report/SKILL.md`
+- `.cursor/skills/mas-clean-start/SKILL.md`
+- `.cursor/skills/start-multi-agent-run/SKILL.md`
+
+## Жёсткое правило для Phase B
+
+- Не запускать `transcription/phase_b_processor.py` в рабочих прогонах.
+- Не использовать Ollama/LM Studio/OpenAI-backend для Phase B в этом проекте.
+- Для Phase B использовать только skill `phase-b-process` с моделью `kimi-k2.5`.
+
+## Защита от случайного переноса в другие проекты
+
+Если workspace path не равен `C:\Users\sa\N8N-projects`, project-specific skills из этого списка не применять без явного подтверждения пользователя.
