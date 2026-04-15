@@ -362,7 +362,26 @@ def main() -> None:
         action="store_true",
         help="input_dir — уже существующая папка ассета: пишет 01_transcript__inbox.md + inbox; без копирования/переноса",
     )
+    ap.add_argument(
+        "--preset",
+        choices=("quality",),
+        default=None,
+        help="Пресет параметров. quality: --vad-filter --language auto "
+             '--initial-prompt "..." --min-text-chars-retry 50 (если не заданы явно)',
+    )
     args = ap.parse_args()
+
+    if args.preset == "quality":
+        if not args.vad_filter:
+            args.vad_filter = True
+        if args.language == "ru":
+            args.language = "auto"
+        if not args.initial_prompt:
+            args.initial_prompt = "Это запись мыслей и идей на русском языке."
+        if args.min_text_chars_retry == 0:
+            args.min_text_chars_retry = 50
+        print(f"[preset=quality] vad_filter=True, language={args.language}, "
+              f"min_text_chars_retry={args.min_text_chars_retry}")
 
     use_cloud = args.backend in ("groq", "openai")
 
@@ -510,8 +529,9 @@ def main() -> None:
         print(f"[{i}/{len(audio_files)}] {source_audio_for_model.name} ...")
 
         def do_transcribe_local(lang: str | None, vad_enabled: bool) -> str:
+            effective_lang = None if (lang is None or lang == "auto") else lang
             kwargs = {
-                "language": lang,
+                "language": effective_lang,
                 "beam_size": args.beam_size,
                 "best_of": args.best_of,
                 "temperature": args.temperature,

@@ -93,9 +93,14 @@ python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-0
 # Рекурсивно все подпапки
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\Audio Brain\00_inbox" --recursive
 
-# С VAD-фильтром и авто-языком (рекомендуется для сложного аудио)
-python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --vad-filter --language auto --initial-prompt "Запись мыслей на русском языке"
+# Рекомендуемый режим для сложного/тихого аудио (одна команда):
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --preset quality
+
+# То же самое вручную:
+python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --vad-filter --language auto --initial-prompt "Запись мыслей на русском языке" --min-text-chars-retry 50
 ```
+
+> **`--preset quality`** включает VAD-фильтр (Silero, отсекает тишину/шум), автоопределение языка, контекстный промпт для русского и повтор при коротком результате (<50 символов). Рекомендуется для записей с диктофона.
 
 ### Groq Cloud (бесплатный лимит: ~2 ч аудио/день)
 
@@ -154,7 +159,29 @@ python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\O
 - `--move-source` / `--copy-source` — в asset-режиме переместить (default) или копировать исходник в asset-папку.
 - `--no-publish-inbox` — в asset-режиме не писать копию transcript в `output_dir`.
 
+- `--preset quality` — включает `--vad-filter --language auto --initial-prompt "..." --min-text-chars-retry 50` (если не заданы явно). Рекомендуется для сложных записей.
+- `--vad-filter` — Silero VAD: отсекает тишину и шум перед распознаванием (только local).
+- `--min-text-chars-retry N` — если транскрипт короче N символов, повторить с `language=auto` (только local).
+
 Имя выходного `.md`: из имени mp3 (slug). При `--recursive` — из относительного пути (папка_имя), чтобы файлы из разных месяцев не перезаписывали друг друга.
+
+## Предобработка аудио (для проблемных записей)
+
+Если запись тихая или зашумлённая, перед транскрибацией можно прогнать через ffmpeg:
+
+```bash
+# Лёгкая чистка (по умолчанию)
+python preprocess_for_asr.py "запись.mp3"
+
+# Агрессивная обработка для тихих записей (компрессор + сильное шумоподавление)
+python preprocess_for_asr.py "запись.mp3" --preset strong
+```
+
+Пресеты:
+- **mild** (default) — highpass 120 Hz + лёгкий afftdn + loudnorm. Для нормальных записей.
+- **strong** — highpass 200 Hz + агрессивный afftdn + **compand** (вытягивает тихую речь) + громче loudnorm. Для записей, где faster-whisper выдаёт пустой или очень короткий результат.
+
+Результат: `*_asr.wav` рядом с исходником. Затем транскрибировать с `--ext .wav` или через `--existing-asset`.
 
 ## Проверка покрытия (какие mp3 ещё без .md)
 
