@@ -1,4 +1,4 @@
 # Active Context
-- Current focus: **WS-022** — закрепление единого Phase B (skill `phase-b-process`, модель Kimi), очистка legacy-упоминаний и внедрение батч-диспетчера лимитов транскрибации.
+- Current focus: Roadmap WS-012 (пункт 3 — навигация по 10_processed) после выполнения ревизии качества и создания канонической инструкции Phase B.
 - Phase: BUILD / EXECUTION (см. `memory-bank/tasks.md`).
-- Parallel track: **WS-010** остаётся открытой до завершения массового прогона спринта B.
+- Parallel track: WS-010, WS-012, WS-019.

@@ -1,3 +1,7 @@
+---
+alwaysApply: false
+---
+
 # Project Skill Scope (`N8N-projects`)
 
 Применяется только в этом репозитории `C:\Users\sa\N8N-projects`.
@@ -15,6 +19,8 @@
 - Не запускать `transcription/phase_b_processor.py` в рабочих прогонах.
 - Не использовать Ollama/LM Studio/OpenAI-backend для Phase B в этом проекте.
 - Для Phase B использовать только skill `phase-b-process` с моделью `kimi-k2.5`.
+- После успешной классификации запись из `00_inbox` ОБЯЗАТЕЛЬНО раскладывается в `10_processed/<category>/`.
+- Архивация или очистка `00_inbox` выполняется только по явной команде пользователя.
 
 ## Защита от случайного переноса в другие проекты
 
