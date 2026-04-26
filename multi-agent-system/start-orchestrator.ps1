@@ -6,7 +6,10 @@ param(
 
     [string]$ProjectContextFile = "",
 
-    [string]$Model = ""
+    [string]$Model = "",
+
+    [ValidateSet("cursor","ollama","openai","lmstudio")]
+    [string]$AgentBackend = "cursor"
 )
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -45,4 +48,4 @@ $inlineContext += "`n`nРабочая зона артефактов: multi-agent
 $inlineContext += "`nГлобальный статус: multi-agent-system/status.md"
 $inlineContext += "`nПосле каждого крупного этапа требуется подтверждение пользователя."
 
-& $runnerFile -PromptFile $promptFile -Model $Model -InlineContext $inlineContext
+& $runnerFile -PromptFile $promptFile -Model $Model -AgentBackend $AgentBackend -InlineContext $inlineContext

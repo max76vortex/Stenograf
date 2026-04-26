@@ -22,7 +22,25 @@
 - Аналитик, архитектор, планировщик: более сильная модель.
 - Ревьюеры и разработчик: быстрая рабочая модель.
 
-Конкретное имя модели выбирается оператором при запуске через Cursor CLI.
+Конкретное имя модели можно:
+- задавать вручную при запуске;
+- или запускать автономно по профилю из `multi-agent-system/config/model-profiles.json`.
+
+### Профиль по умолчанию для нового автономного run
+
+`default-quality`:
+
+```yaml
+orchestrator: gpt-5.5-high
+analyst: gemini-3.1-pro
+tz_reviewer: grok-4-20-thinking
+architect: gpt-5.5-xhigh
+architecture_reviewer: grok-4-20-thinking
+planner: gemini-3.1-pro
+plan_reviewer: gpt-5.5-high
+developer: gpt-5.3-codex-high
+code_reviewer: gpt-5.3-codex-xhigh
+```
 
 ## Где лежат артефакты
 

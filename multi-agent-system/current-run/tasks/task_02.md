@@ -1,36 +1,49 @@
-# Task 02: Массовый прогон архива записей
+# Task 02: Реализация `faster-whisper-local` провайдера и интеграция в Core
 
-## Goal
+## 1. Цель задачи
 
-Обработать накопленные записи (ориентир ~30 ГБ) батчами с соблюдением порядка в папках и без потери связи mp3 ↔ транскрипт.
+Реализовать локальный ASR-провайдер на базе `faster-whisper` и интегрировать его в основной конвейер транскрибации `transcribe_to_obsidian.py`. Обеспечить, чтобы это был единственный файл в Core, который напрямую импортирует `WhisperModel`.
 
-## Related Use Cases
+## 2. Связь с use case
 
-- UC-03 (рекурсия), UC-05 (длинный прогон), UC-07 (пауза между файлами).
+- **UC-01:** Установка окружения (сохранение зависимости `faster-whisper`).
+- **UC-02:** Транскрибация папки месяца (вызов ASR-провайдера).
+- **UC-03:** Рекурсивная транскрибация дерева (вызов ASR-провайдера).
+- **UC-06:** Delta-контур Core/MAS Delivery и ASR R&D (интеграция провайдера через абстракцию).
 
-## Steps
+## 3. Конкретные файлы изменений
 
-1. Подготовить дерево `recordings/YYYY-MM/` и имена `YYYY-MM-DD_NNN[_метка].mp3` (см. `memory-bank/creative/creative-transcription-workflow.md`).
-2. Выбрать стратегию: **по месяцам** (отдельный запуск на каждую папку) или **один** запуск с `--recursive` на корень `recordings`.
-3. Запускать в удобное время (ночь); при необходимости:  
-   `--sleep-between-seconds 2` (или GUI с паузой).
-4. Опционально вести `--manifest D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv`.
-5. Периодически: `check_coverage.py` с теми же флагами, что и транскрибация.
-6. При сбое — повторный запуск **без** `--overwrite` (добавятся только недостающие).
+- **Создаются:**
+  - `transcription/asr_providers/faster_whisper_local.py`
+- **Изменяются:**
+  - `transcription/transcribe_to_obsidian.py`
+  - `transcription/asr_providers/registry.py`
 
-## Acceptance Criteria
+## 4. Описание добавляемых или изменяемых классов, методов, функций
 
-- [ ] Все целевые mp3 имеют соответствующие `.md` в `00_inbox` (или осознанный остаток в backlog).
-- [ ] Манифест/лог (если использовался) согласован с фактом.
+- **В `transcription/asr_providers/faster_whisper_local.py`:**
+  - `class FasterWhisperLocalProvider(AsrProvider)`: Реализация интерфейса `AsrProvider`.
+  - `def transcribe(self, request: AsrRequest) -> AsrResult`:
+    - Создает инстанс `WhisperModel` с параметрами из `request.runtime_options` (`model_size`, `device`, `compute_type`).
+    - Вызывает метод транскрибации.
+    - Маппит результаты `faster-whisper` в `AsrResult`.
+    - Обрабатывает ошибки и выбрасывает `AsrError`.
+- **В `transcription/asr_providers/registry.py`:**
+  - Регистрация `FasterWhisperLocalProvider` под ключом `faster-whisper-local`.
+- **В `transcription/transcribe_to_obsidian.py`:**
+  - Удаление прямых импортов `faster_whisper` и `WhisperModel`.
+  - Замена создания модели на `provider = get_provider(DEFAULT_ASR_PROVIDER_ID)`.
+  - Формирование `AsrRequest` из аргументов CLI и вызов `provider.transcribe(request)`.
 
-## Status
+## 5. Тест-кейсы
 
-- [ ] Not started
-- [x] In progress
-- [ ] Done
+- **TC-02.1:** Вызов `transcribe` с валидным `.mp3` возвращает `AsrResult` с текстом.
+- **TC-02.2:** Вызов `transcribe` с несуществующим файлом выбрасывает `AsrError` с категорией `input_not_found`.
+- **TC-02.3:** Запуск `transcribe_to_obsidian.py --help` проходит без ошибок.
 
-## Run Log
+## 6. Критерии приемки
 
-- 2026-03-30: Старт массового прогона на реальных данных с папки `D:\1 ЗАПИСИ ГОЛОС\recordings` (1 файл).
-- Результат: создан `D:\Obsidian\Audio Brain\00_inbox\28-....md`, `check_coverage.py` для этой папки без MISSING.
-- Ограничение: `cuda` не поднялась (`cublas64_12.dll`), прогон выполнен на `--device cpu --compute-type int8`.
+- [ ] В `transcribe_to_obsidian.py` полностью отсутствуют импорты `faster_whisper` и `WhisperModel`.
+- [ ] Единственное место, где инициализируется `WhisperModel`, — это `transcription/asr_providers/faster_whisper_local.py`.
+- [ ] Существующие параметры CLI (`--model`, `--device`, `--compute-type`) корректно пробрасываются в `AsrRequest` и применяются провайдером.
+- [ ] Выходной Markdown-файл и frontmatter формируются корректно на основе возвращенного `AsrResult`.

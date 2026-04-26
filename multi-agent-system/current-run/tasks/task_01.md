@@ -1,41 +1,51 @@
-# Task 01: Окружение и smoke-тест транскрибации
+# Task 01: Создание абстракции ASR-провайдера и слоя именования
 
-## Goal
+## 1. Цель задачи
 
-Убедиться, что на машине поднимается Python-окружение с faster-whisper и что конвейер mp3 → `00_inbox` работает на 1–2 тестовых файлах.
+Выделить общую логику формирования имен выходных файлов (Naming Layer) для обеспечения паритета между скриптами транскрибации и проверки покрытия. Создать базовые интерфейсы ASR-провайдера (ASR Provider Abstraction), чтобы отвязать основной конвейер (Core Delivery) от прямой зависимости от библиотеки `faster_whisper`.
 
-## Related Use Cases
+## 2. Связь с use case
 
-- UC-01 (установка), UC-02 (одна папка), UC-04 (check_coverage).
+- **UC-02:** Транскрибация папки месяца (единое именование `.md` файлов).
+- **UC-03:** Рекурсивная транскрибация дерева (предотвращение коллизий имен).
+- **UC-04:** Проверка покрытия транскрибации (использование общего слоя именования).
+- **UC-06:** Delta-контур Core/MAS Delivery и ASR R&D (введение абстракции провайдера).
 
-## Steps (исполнитель: пользователь + опционально `run-smoke-test.ps1`)
+## 3. Конкретные файлы изменений
 
-1. Открыть PowerShell, перейти в `C:\Users\sa\N8N-projects\transcription`.
-2. `python -m venv .venv` (если ещё нет).
-3. `.\.venv\Scripts\Activate.ps1`
-4. `pip install -r requirements.txt`
-5. `python transcribe_to_obsidian.py --help` — без ошибок импорта.
-6. `python check_coverage.py --help` — без ошибок.
-7. Создать тестовую папку с 1–2 короткими mp3 (или скопировать из архива).
-8. Запустить:  
-   `python transcribe_to_obsidian.py "<путь_к_тестовым_mp3>" "D:\Obsidian\Audio Brain\00_inbox"`  
-   (путь к vault подставить свой, если другой).
-9. Проверить в Obsidian появление заметок и поле `audio_file` во frontmatter.
-10. `python check_coverage.py "<путь_к_тестовым_mp3>" "D:\Obsidian\Audio Brain\00_inbox"`
+- **Создаются:**
+  - `transcription/naming.py`
+  - `transcription/asr_providers/__init__.py`
+  - `transcription/asr_providers/base.py`
+  - `transcription/asr_providers/registry.py`
+- **Изменяются:**
+  - `transcription/transcribe_to_obsidian.py`
+  - `transcription/check_coverage.py`
 
-## Acceptance Criteria
+## 4. Описание добавляемых или изменяемых классов, методов, функций
 
-- [x] Шаги 5–6 проходят (`run-smoke-test.ps1` + ручной `--help`).
-- [x] После шага 8 в `00_inbox` есть `.md` с текстом транскрипта (автопрогон 2026-03-30: тестовый WAV в `transcription/test_smoke/` → `D:\Obsidian\Audio Brain\00_inbox`, для скорости `--model tiny --device cpu --ext .wav`; боевая схема: `large-v3` + `cuda` + `.mp3`).
-- [x] `check_coverage.py` не показывает MISSING для тестовых файлов.
+- **В `transcription/naming.py`:**
+  - `def get_expected_md_name(audio_path: str, root_dir: str) -> str`: Возвращает ожидаемое имя `.md` файла для заданного аудио (с учетом рекурсивного пути для предотвращения коллизий).
+  - `def slugify(text: str) -> str`: Общая функция очистки имен (перенос из `transcribe_to_obsidian.py`).
+- **В `transcription/asr_providers/base.py`:**
+  - `class AsrRequest`: Dataclass/Pydantic-модель с полями `audio_path`, `language`, `provider_id`, `model`, `runtime_options`.
+  - `class AsrResult`: Dataclass/Pydantic-модель с полями `text`, `segments`, `language_detected`, `duration_sec`, `provider_id`, `quality_flags`.
+  - `class AsrError(Exception)`: Базовый класс ошибок провайдера.
+  - `class AsrProvider(Protocol)`: Интерфейс с методом `def transcribe(self, request: AsrRequest) -> AsrResult`.
+- **В `transcription/asr_providers/registry.py`:**
+  - `DEFAULT_ASR_PROVIDER_ID = "faster-whisper-local"`
+  - `def get_provider(provider_id: str) -> AsrProvider`: Фабрика для получения инстанса провайдера.
+- **В `transcribe_to_obsidian.py` и `check_coverage.py`:**
+  - Замена дублирующейся логики именования вызовами из `naming.py`.
 
-## Notes
+## 5. Тест-кейсы
 
-- Первый полный прогон с загрузкой модели large-v3 может занять время и трафик; для `--help` модель не качается.
-- Если CUDA не установлена, для smoke можно временно `--device cpu` (медленнее).
+- **TC-01.1:** Передача `audio_path` из вложенной папки в `get_expected_md_name` возвращает имя, включающее префикс папки.
+- **TC-01.2:** Вызов `get_provider("unknown_id")` выбрасывает исключение `ValueError`.
+- **TC-01.3:** Импорт `AsrRequest` и `AsrResult` проходит без ошибок.
 
-## Status
+## 6. Критерии приемки
 
-- [ ] Not started
-- [ ] In progress
-- [x] Done (smoke в vault подтверждён агентом; массовый прогон — `task_02.md`)
+- [ ] В `transcribe_to_obsidian.py` и `check_coverage.py` больше нет дублирования функций `slugify` и логики формирования имен.
+- [ ] Пакет `asr_providers` содержит базовые классы и типы, не зависящие от конкретных библиотек (например, `faster_whisper`).
+- [ ] Реестр провайдеров (`registry.py`) корректно инициализирован и содержит константу `DEFAULT_ASR_PROVIDER_ID`.

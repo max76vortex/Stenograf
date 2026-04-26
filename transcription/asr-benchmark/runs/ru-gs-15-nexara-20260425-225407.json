@@ -1,0 +1,15 @@
+{
+  "detail": "Недостаточно средств на аккаунте.",
+  "_meta": {
+    "run_id": "ru-gs-15-nexara-20260425-225407",
+    "file_id": "ru-gs-15",
+    "noise": "high",
+    "engine": "nexara-transcriptions",
+    "audio_path": "D:\\1 ЗАПИСИ ГОЛОС\\recordings\\2012-10\\2012-10-03_006_DW_C0409.wav",
+    "endpoint": "https://api.nexara.ru/api/v1/audio/transcriptions",
+    "http_status": 402,
+    "elapsed_sec": 89.983,
+    "created_at": "2026-04-25T22:55:37",
+    "response_content_type": "application/json"
+  }
+}

@@ -3,7 +3,10 @@
 # Exit code: 0 = OK to proceed, 1 = fix issues first.
 
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet("cursor","ollama","openai","lmstudio")]
+    [string]$AgentBackend = "cursor"
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -41,25 +44,47 @@ Write-Host ""
 $pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
 $allOk = (Test-PreflightItem -Name 'PowerShell 7 (pwsh)' -Ok ($null -ne $pwshCmd) -Detail $(if ($pwshCmd) { $pwshCmd.Source })) -and $allOk
 
-# --- Cursor Agent CLI (at least one path to invoke agent) ---
-$agentCmd = Get-Command agent -ErrorAction SilentlyContinue
-$cursorAgentCmd = Get-Command cursor-agent -ErrorAction SilentlyContinue
-$cursorCmd = Get-Command cursor -ErrorAction SilentlyContinue
-$localAgentCmd = Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.cmd'
-$localCursorAgentCmd = Join-Path $env:LOCALAPPDATA 'cursor-agent\cursor-agent.cmd'
-$hasLocalAgent = (Test-Path -LiteralPath $localAgentCmd)
-$hasLocalCursorAgent = (Test-Path -LiteralPath $localCursorAgentCmd)
+switch ($AgentBackend) {
+    "cursor" {
+        $agentCmd = Get-Command agent -ErrorAction SilentlyContinue
+        $cursorAgentCmd = Get-Command cursor-agent -ErrorAction SilentlyContinue
+        $cursorCmd = Get-Command cursor -ErrorAction SilentlyContinue
+        $localAgentCmd = Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.cmd'
+        $localCursorAgentCmd = Join-Path $env:LOCALAPPDATA 'cursor-agent\cursor-agent.cmd'
+        $hasLocalAgent = (Test-Path -LiteralPath $localAgentCmd)
+        $hasLocalCursorAgent = (Test-Path -LiteralPath $localCursorAgentCmd)
 
-$cliOk = $null -ne $agentCmd -or $null -ne $cursorAgentCmd -or $hasLocalAgent -or $hasLocalCursorAgent -or $null -ne $cursorCmd
-$cliDetail = @()
-if ($agentCmd) { $cliDetail += 'agent in PATH' }
-if ($cursorAgentCmd) { $cliDetail += 'cursor-agent in PATH' }
-if ($hasLocalAgent) { $cliDetail += "local: $localAgentCmd" }
-if ($hasLocalCursorAgent) { $cliDetail += "local: $localCursorAgentCmd" }
-if ($cursorCmd -and -not $cliOk) { $cliDetail += 'cursor in PATH (fallback only)' }
-if ($cliDetail.Count -eq 0) { $cliDetail = @('no agent entrypoint found') }
-
-$allOk = (Test-PreflightItem -Name 'Cursor Agent CLI (agent / cursor-agent or local install)' -Ok $cliOk -Detail ($cliDetail -join '; ')) -and $allOk
+        $cliOk = $null -ne $agentCmd -or $null -ne $cursorAgentCmd -or $hasLocalAgent -or $hasLocalCursorAgent -or $null -ne $cursorCmd
+        $cliDetail = @()
+        if ($agentCmd) { $cliDetail += 'agent in PATH' }
+        if ($cursorAgentCmd) { $cliDetail += 'cursor-agent in PATH' }
+        if ($hasLocalAgent) { $cliDetail += "local: $localAgentCmd" }
+        if ($hasLocalCursorAgent) { $cliDetail += "local: $localCursorAgentCmd" }
+        if ($cursorCmd -and -not $cliOk) { $cliDetail += 'cursor in PATH (fallback only)' }
+        if ($cliDetail.Count -eq 0) { $cliDetail = @('no agent entrypoint found') }
+        $allOk = (Test-PreflightItem -Name 'Backend cursor: agent entrypoint' -Ok $cliOk -Detail ($cliDetail -join '; ')) -and $allOk
+    }
+    "ollama" {
+        $ollamaCmd = Get-Command ollama -ErrorAction SilentlyContinue
+        $allOk = (Test-PreflightItem -Name 'Backend ollama: CLI' -Ok ($null -ne $ollamaCmd) -Detail $(if ($ollamaCmd) { $ollamaCmd.Source } else { 'ollama not found in PATH' })) -and $allOk
+    }
+    "openai" {
+        $hasOpenAiKey = -not [string]::IsNullOrWhiteSpace($env:OPENAI_API_KEY)
+        $allOk = (Test-PreflightItem -Name 'Backend openai: OPENAI_API_KEY' -Ok $hasOpenAiKey -Detail $(if ($hasOpenAiKey) { 'set' } else { 'not set' })) -and $allOk
+    }
+    "lmstudio" {
+        $lmOk = $true
+        $lmDetail = 'http://127.0.0.1:1234/v1/models'
+        try {
+            $null = Invoke-RestMethod -Method Get -Uri $lmDetail -TimeoutSec 3
+        }
+        catch {
+            $lmOk = $false
+            $lmDetail = "endpoint not reachable ($lmDetail)"
+        }
+        $allOk = (Test-PreflightItem -Name 'Backend lmstudio: local API' -Ok $lmOk -Detail $lmDetail) -and $allOk
+    }
+}
 
 # --- Required files (relative to workspace root) ---
 $required = @(

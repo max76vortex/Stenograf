@@ -75,7 +75,7 @@ N8N-projects/
 
 ### Инициализация в новом проекте
 
-- Скилл **memory-bank-init** (`.cursor/skills/memory-bank-init/SKILL.md`): Memory Bank 2.0 + реестр `WS-NNN` + опционально журнал активности; переносимые шаблоны в `**memory-bank/bootstrap/`**.
+- Скилл **memory-bank-init** (`.cursor/skills/user-mb-init/SKILL.md`): Memory Bank 2.0 + реестр `WS-NNN` + опционально журнал активности; переносимые шаблоны в `**memory-bank/bootstrap/`**.
 - Что вставить в **глобальные** User Rules Cursor: `**memory-bank/bootstrap/GLOBAL-CURSOR-SETUP.md`**.
 
 ## Мультиагентная система (MAS)

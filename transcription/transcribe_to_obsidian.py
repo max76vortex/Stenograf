@@ -1,45 +1,26 @@
 #!/usr/bin/env python3
 """
 Транскрибация mp3 в .md для Obsidian vault (00_inbox).
-Использует faster-whisper с моделью large-v3 для максимального качества.
+Использует ASR provider abstraction; текущий default — faster-whisper-local.
 Требуется GPU с 6+ ГБ VRAM (например RTX 3060).
 """
-import os
-import sys
-import sysconfig
 from pathlib import Path
 import argparse
+import csv
 import json
 import re
 import shutil
 import time
 from datetime import datetime
 
-
-def _prepend_nvidia_cublas_bin() -> None:
-    """Windows: ctranslate2 ищет cublas64_12.dll; pip-пакет nvidia-cublas-cu12 кладёт DLL в site-packages."""
-    if sys.platform != "win32":
-        return
-    try:
-        purelib = Path(sysconfig.get_paths()["purelib"])
-        bin_dir = purelib / "nvidia" / "cublas" / "bin"
-        if (bin_dir / "cublas64_12.dll").is_file():
-            os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
-    except Exception:
-        pass
-
-
-_prepend_nvidia_cublas_bin()
-
-from faster_whisper import WhisperModel
-
-
-def slug(s: str) -> str:
-    """Безопасное имя файла из строки."""
-    s = s.strip()
-    s = re.sub(r"[^\w\s\-]", "", s, flags=re.UNICODE)
-    s = re.sub(r"[-\s]+", "-", s).strip("-") or "transcript"
-    return s[:120]
+from asr_providers import (
+    DEFAULT_ASR_PROVIDER_ID,
+    SUPPORTED_ASR_PROVIDER_IDS,
+    AsrError,
+    AsrRequest,
+    get_provider,
+)
+from naming import get_expected_md_name, slugify
 
 
 def date_from_path(p: Path) -> str:
@@ -72,7 +53,7 @@ def build_asset_dir_name(audio_path: Path) -> str:
     """YYYY-MM-DD_NNN_slug__src-YYYYMMDD"""
     primary_date = date_from_path(audio_path)
     seq = extract_seq_from_name(audio_path)
-    base = slug(audio_path.stem)
+    base = slugify(audio_path.stem)
     src_date = src_date_compact_from_path(audio_path)
     return f"{primary_date}_{seq}_{base}__src-{src_date}"
 
@@ -87,6 +68,10 @@ def update_meta_json(
     published_inbox_path: Path | None,
     phase: str,
     asr_input_path: Path | None = None,
+    asr_provider: str = "",
+    asr_model: str = "",
+    asr_status: str = "success",
+    quality_flags: list[str] | None = None,
 ) -> None:
     now_iso = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     data: dict = {}
@@ -108,6 +93,13 @@ def update_meta_json(
     }
     if asr_input_path is not None and asr_input_path.resolve() != source_audio_path.resolve():
         ver["asr_input"] = str(asr_input_path.resolve())
+    if asr_provider:
+        ver["asr_provider"] = asr_provider
+    if asr_model:
+        ver["asr_model"] = asr_model
+    ver["asr_status"] = asr_status
+    if quality_flags:
+        ver["quality_flags"] = quality_flags
     versions.append(ver)
     data.update(
         {
@@ -117,6 +109,68 @@ def update_meta_json(
             "asset_path": str(asset_dir),
             "updated_at": now_iso,
             "versions": versions,
+            "asr_status": asr_status,
+        }
+    )
+    if asr_provider:
+        data["asr_provider"] = asr_provider
+    if asr_model:
+        data["asr_model"] = asr_model
+    if quality_flags:
+        data["quality_flags"] = quality_flags
+    if "created_at" not in data:
+        data["created_at"] = now_iso
+    meta_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def update_asr_failure_meta(
+    meta_path: Path,
+    *,
+    asset_dir: Path,
+    source_audio_name: str,
+    source_audio_path: Path,
+    asr_input_path: Path | None,
+    error: AsrError,
+) -> None:
+    now_iso = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    data: dict = {}
+    if meta_path.exists():
+        try:
+            loaded = json.loads(meta_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                data = loaded
+        except Exception:
+            data = {}
+    versions = data.get("versions")
+    if not isinstance(versions, list):
+        versions = []
+    ver: dict = {
+        "timestamp": now_iso,
+        "phase": "A",
+        "asr_status": "failed",
+        "transcript_file": "",
+        "published_inbox_path": "",
+        "asr_provider": error.provider_id,
+        "asr_model": error.model,
+        "asr_error_category": error.category,
+        "asr_error_message": error.message,
+    }
+    if asr_input_path is not None and asr_input_path.resolve() != source_audio_path.resolve():
+        ver["asr_input"] = str(asr_input_path.resolve())
+    versions.append(ver)
+    data.update(
+        {
+            "phase": "A",
+            "audio_file": source_audio_name,
+            "source_audio_path": str(source_audio_path),
+            "asset_path": str(asset_dir),
+            "updated_at": now_iso,
+            "versions": versions,
+            "asr_status": "failed",
+            "asr_provider": error.provider_id,
+            "asr_model": error.model,
+            "asr_error_category": error.category,
+            "asr_error_message": error.message,
         }
     )
     if "created_at" not in data:
@@ -140,7 +194,7 @@ links: []
 ---
 
 ## Заголовок
-{title or slug(audio_path.stem)}
+{title or slugify(audio_path.stem)}
 
 ## Краткое резюме (заполнить после просмотра)
 - **Основные темы**:
@@ -156,14 +210,23 @@ links: []
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Transcribe mp3 files to Markdown for Obsidian 00_inbox (faster-whisper)."
+        description=(
+            "Transcribe audio files to Markdown for Obsidian 00_inbox "
+            f"(default ASR provider: {DEFAULT_ASR_PROVIDER_ID})."
+        )
     )
     ap.add_argument("input_dir", type=Path, help="Папка с .mp3 (или корень с подпапками при --recursive)")
     ap.add_argument("output_dir", type=Path, help="Папка для .md (например vault/00_inbox)")
-    ap.add_argument("--model", default="large-v3", help="Модель faster-whisper (default: large-v3)")
+    ap.add_argument("--model", default="large-v3", help="ASR model/profile (default: large-v3)")
     ap.add_argument("--device", default="cuda", choices=("cuda", "cpu"))
     ap.add_argument("--compute-type", default="float16", help="float16 для 6GB VRAM")
     ap.add_argument("--language", default="ru", help="Язык (ru, auto, ...)")
+    ap.add_argument(
+        "--asr-provider",
+        default=DEFAULT_ASR_PROVIDER_ID,
+        choices=sorted(SUPPORTED_ASR_PROVIDER_IDS),
+        help=f"ASR provider id (default: {DEFAULT_ASR_PROVIDER_ID})",
+    )
     ap.add_argument("--overwrite", action="store_true", help="Перезаписывать существующие .md")
     ap.add_argument("--recursive", action="store_true", help="Обходить подпапки (recordings/2024-01, 2024-02, ...)")
     ap.add_argument("--manifest", type=Path, default=None, metavar="FILE", help="Лог обработанных: CSV (timestamp, mp3_path, md_name, date)")
@@ -236,18 +299,15 @@ def main() -> None:
         audio_files = [pick[0]]
 
         def out_name_for(p: Path) -> str:
-            return slug(p.stem) + ".md"
+            return slugify(p.stem) + ".md"
     elif args.recursive:
         audio_files = sorted(input_dir.rglob(f"*{args.ext}"))
-        # Имена .md при рекурсии: относительный путь без расширения как slug (избегаем коллизий между папками)
         def out_name_for(p: Path) -> str:
-            rel = p.relative_to(input_dir)
-            stem = rel.with_suffix("").as_posix().replace("/", "_")
-            return slug(stem) + ".md"
+            return get_expected_md_name(p, input_dir, recursive=True)
     else:
         audio_files = sorted(input_dir.glob(f"*{args.ext}"))
         def out_name_for(p: Path) -> str:
-            return slug(p.stem) + ".md"
+            return get_expected_md_name(p, input_dir, recursive=False)
     if not audio_files:
         print(f"Нет файлов *{args.ext} в {input_dir}")
         return
@@ -259,8 +319,21 @@ def main() -> None:
     if args.copy_source and args.move_source:
         raise SystemExit("Нельзя использовать одновременно --copy-source и --move-source")
 
-    print(f"Загрузка модели {args.model} ({args.device}, {args.compute_type})...")
-    model = WhisperModel(args.model, device=args.device, compute_type=args.compute_type)
+    print(f"Загрузка ASR provider {args.asr_provider}: {args.model} ({args.device}, {args.compute_type})...")
+    try:
+        asr_provider = get_provider(
+            args.asr_provider,
+            model=args.model,
+            device=args.device,
+            compute_type=args.compute_type,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    except AsrError as exc:
+        raise SystemExit(
+            f"ASR provider init failed: {exc.provider_id} {exc.model} "
+            f"[{exc.category}] {exc.message}"
+        ) from exc
     print(f"Обработка {len(audio_files)} файлов -> {output_dir}")
 
     manifest_file = None
@@ -269,12 +342,21 @@ def main() -> None:
         if not manifest_file.exists():
             if asset_root or args.existing_asset:
                 manifest_file.write_text(
-                    "timestamp,mp3_path,asset_dir,transcript_file,inbox_md,date,source_action\n",
+                    "timestamp,mp3_path,asset_dir,transcript_file,inbox_md,date,source_action,"
+                    "asr_provider,asr_model,asr_status,asr_error_category,asr_error_message,"
+                    "error_category,elapsed_sec\n",
                     encoding="utf-8",
                 )
             else:
-                manifest_file.write_text("timestamp,mp3_path,md_name,date\n", encoding="utf-8")
+                manifest_file.write_text(
+                    "timestamp,mp3_path,md_name,date,"
+                    "asr_provider,asr_model,asr_status,asr_error_category,asr_error_message,"
+                    "error_category,elapsed_sec\n",
+                    encoding="utf-8",
+                )
 
+    failure_count = 0
+    has_errors = False
     for i, audio_path in enumerate(audio_files, 1):
         meta: dict = {}
         date = date_from_path(audio_path)
@@ -282,6 +364,7 @@ def main() -> None:
         out_path = output_dir / out_name
         source_action = "none"
         source_audio_for_model = audio_path
+        pending_move_target: Path | None = None
         transcript_path: Path | None = None
         asset_dir: Path | None = None
 
@@ -298,7 +381,7 @@ def main() -> None:
                 except Exception:
                     meta = {}
             if meta.get("audio_file"):
-                out_name = slug(Path(str(meta["audio_file"])).stem) + ".md"
+                out_name = slugify(Path(str(meta["audio_file"])).stem) + ".md"
                 out_path = output_dir / out_name
                 if meta.get("source_audio_path"):
                     try:
@@ -320,21 +403,23 @@ def main() -> None:
                     if not target_audio.exists():
                         shutil.copy2(audio_path, target_audio)
                     source_action = "copied"
+                    source_audio_for_model = target_audio
                 else:
-                    # default for asset mode: move source
+                    # Defer destructive move until ASR succeeds, so a failed file remains retryable
+                    # by rerunning the same recordings -> asset-root command.
                     do_move = args.move_source or not args.copy_source
                     if do_move:
                         if target_audio.exists():
                             source_action = "already-in-asset"
+                            source_audio_for_model = target_audio
                         else:
-                            shutil.move(str(audio_path), str(target_audio))
+                            pending_move_target = target_audio
                             source_action = "moved"
                     else:
                         source_action = "kept"
             else:
                 source_action = "already-in-asset"
-
-            source_audio_for_model = target_audio if target_audio.exists() else audio_path
+                source_audio_for_model = target_audio
             transcript_path = asset_dir / "01_transcript__inbox.md"
             if transcript_path.exists() and not args.overwrite:
                 print(f"[{i}/{len(audio_files)}] Пропуск (уже есть): {transcript_path.name}")
@@ -344,32 +429,123 @@ def main() -> None:
                 print(f"[{i}/{len(audio_files)}] Пропуск (уже есть): {audio_path.name}")
                 continue
 
+        src_name_for_meta = source_audio_for_model.name
+        src_path_for_meta = source_audio_for_model
+        asr_in_for_meta: Path | None = None
+        if asset_dir:
+            if args.existing_asset:
+                src_name_for_meta = str(meta.get("audio_file", source_audio_for_model.name))
+                if meta.get("source_audio_path"):
+                    src_path_for_meta = Path(str(meta["source_audio_path"]))
+                else:
+                    src_path_for_meta = asset_dir / src_name_for_meta
+                asr_in_for_meta = (
+                    source_audio_for_model
+                    if source_audio_for_model.resolve() != src_path_for_meta.resolve()
+                    else None
+                )
+            else:
+                src_name_for_meta = source_audio_for_model.name
+                src_path_for_meta = source_audio_for_model
+
         print(f"[{i}/{len(audio_files)}] {source_audio_for_model.name} ...")
 
-        def do_transcribe(lang: str | None, vad_enabled: bool) -> str:
-            kwargs = {
-                "language": lang,
+        asr_request_audio_path = source_audio_for_model
+        request = AsrRequest(
+            audio_path=asr_request_audio_path,
+            language=args.language,
+            provider_id=args.asr_provider,
+            model=args.model,
+            runtime_options={
+                "device": args.device,
+                "compute_type": args.compute_type,
                 "beam_size": args.beam_size,
                 "best_of": args.best_of,
                 "temperature": args.temperature,
-                "vad_filter": vad_enabled,
-            }
-            if args.initial_prompt:
-                kwargs["initial_prompt"] = args.initial_prompt
-            segments, _info = model.transcribe(str(source_audio_for_model), **kwargs)
-            return "\n".join(s.text.strip() for s in segments if s.text.strip())
-
-        text = do_transcribe(args.language, args.vad_filter)
-        if args.min_text_chars_retry > 0 and len(text.strip()) < args.min_text_chars_retry:
-            print(f"  ! short transcript ({len(text.strip())} chars), retry with language=auto/vad=off")
-            retry_text = do_transcribe(None, False)
-            if len(retry_text.strip()) > len(text.strip()):
-                text = retry_text
+                "vad_filter": args.vad_filter,
+                "initial_prompt": args.initial_prompt,
+                "min_text_chars_retry": args.min_text_chars_retry,
+            },
+            source_metadata={
+                "source_audio_name": audio_path.name,
+                "output_name": out_name,
+                "asset_dir": str(asset_dir) if asset_dir else "",
+                "source_action": source_action,
+            },
+        )
+        try:
+            transcribe_started = time.perf_counter()
+            asr_result = asr_provider.transcribe(request)
+        except AsrError as exc:
+            elapsed_sec = round(time.perf_counter() - transcribe_started, 3)
+            failure_count += 1
+            has_errors = True
+            print(
+                f"[FAILED] {source_audio_for_model.name}: "
+                f"{exc.provider_id} {exc.model} [{exc.category}] {exc.message}"
+            )
+            if asset_dir:
+                update_asr_failure_meta(
+                    asset_dir / "meta.json",
+                    asset_dir=asset_dir,
+                    source_audio_name=src_name_for_meta,
+                    source_audio_path=src_path_for_meta,
+                    asr_input_path=asr_in_for_meta,
+                    error=exc,
+                )
+            if manifest_file:
+                ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                with manifest_file.open("a", encoding="utf-8", newline="") as f:
+                    writer = csv.writer(f)
+                    if (asset_root or args.existing_asset) and asset_dir:
+                        writer.writerow(
+                            [
+                                ts,
+                                str(source_audio_for_model.resolve()),
+                                str(asset_dir),
+                                "",
+                                "",
+                                date,
+                                source_action,
+                                exc.provider_id,
+                                exc.model,
+                                "failed",
+                                exc.category,
+                                exc.message,
+                                exc.category,
+                                elapsed_sec,
+                            ]
+                        )
+                    else:
+                        writer.writerow(
+                            [
+                                ts,
+                                str(audio_path.resolve()),
+                                out_name,
+                                date,
+                                exc.provider_id,
+                                exc.model,
+                                "failed",
+                                exc.category,
+                                exc.message,
+                                exc.category,
+                                elapsed_sec,
+                            ]
+                        )
+            continue
+        elapsed_sec = round(time.perf_counter() - transcribe_started, 3)
+        if pending_move_target is not None:
+            shutil.move(str(audio_path), str(pending_move_target))
+            source_audio_for_model = pending_move_target
+            src_name_for_meta = source_audio_for_model.name
+            src_path_for_meta = source_audio_for_model
+            asr_in_for_meta = asr_request_audio_path
+        text = asr_result.text
         if not text.strip():
             if args.existing_asset and meta.get("audio_file"):
-                title = slug(Path(str(meta["audio_file"])).stem)
+                title = slugify(Path(str(meta["audio_file"])).stem)
             else:
-                title = slug(source_audio_for_model.stem)
+                title = slugify(source_audio_for_model.stem)
         else:
             title = None
         md_audio_path = source_audio_for_model
@@ -392,30 +568,19 @@ def main() -> None:
                 published_inbox_path = out_path
                 print(f"  -> {out_path.name} (inbox)")
             if asset_dir:
-                if args.existing_asset:
-                    src_name = str(meta.get("audio_file", source_audio_for_model.name))
-                    if meta.get("source_audio_path"):
-                        src_path = Path(str(meta["source_audio_path"]))
-                    else:
-                        src_path = asset_dir / src_name
-                    asr_in = (
-                        source_audio_for_model
-                        if source_audio_for_model.resolve() != src_path.resolve()
-                        else None
-                    )
-                else:
-                    src_name = source_audio_for_model.name
-                    src_path = source_audio_for_model
-                    asr_in = None
                 update_meta_json(
                     asset_dir / "meta.json",
                     asset_dir=asset_dir,
-                    source_audio_name=src_name,
-                    source_audio_path=src_path,
+                    source_audio_name=src_name_for_meta,
+                    source_audio_path=src_path_for_meta,
                     transcript_file=transcript_path.name,
                     published_inbox_path=published_inbox_path,
                     phase="A",
-                    asr_input_path=asr_in,
+                    asr_input_path=asr_in_for_meta,
+                    asr_provider=asr_result.provider_id,
+                    asr_model=asr_result.model,
+                    asr_status="success",
+                    quality_flags=asr_result.quality_flags,
                 )
         else:
             out_path.write_text(md, encoding="utf-8")
@@ -423,20 +588,51 @@ def main() -> None:
 
         if manifest_file:
             ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-            if (asset_root or args.existing_asset) and transcript_path and asset_dir:
-                inbox_name = out_path.name if publish_inbox else ""
-                line = (
-                    f"{ts},{source_audio_for_model.resolve()!s},{asset_dir},{transcript_path.name},"
-                    f"{inbox_name},{date},{source_action}\n"
-                )
-            else:
-                line = f"{ts},{audio_path.resolve()!s},{out_name},{date}\n"
-            with manifest_file.open("a", encoding="utf-8") as f:
-                f.write(line)
+            with manifest_file.open("a", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                if (asset_root or args.existing_asset) and transcript_path and asset_dir:
+                    inbox_name = out_path.name if publish_inbox else ""
+                    writer.writerow(
+                        [
+                            ts,
+                            str(source_audio_for_model.resolve()),
+                            str(asset_dir),
+                            transcript_path.name,
+                            inbox_name,
+                            date,
+                            source_action,
+                            asr_result.provider_id,
+                            asr_result.model,
+                            "success",
+                            "",
+                            "",
+                            "",
+                            elapsed_sec,
+                        ]
+                    )
+                else:
+                    writer.writerow(
+                        [
+                            ts,
+                            str(audio_path.resolve()),
+                            out_name,
+                            date,
+                            asr_result.provider_id,
+                            asr_result.model,
+                            "success",
+                            "",
+                            "",
+                            "",
+                            elapsed_sec,
+                        ]
+                    )
 
         if args.sleep_between_seconds > 0:
             time.sleep(args.sleep_between_seconds)
 
+    if has_errors:
+        print(f"Готово с ошибками: failed={failure_count}.")
+        raise SystemExit(1)
     print("Готово.")
 
 

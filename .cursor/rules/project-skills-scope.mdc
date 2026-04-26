@@ -1,18 +1,17 @@
 ---
 alwaysApply: false
 ---
-
 # Project Skill Scope (`N8N-projects`)
 
 Применяется только в этом репозитории `C:\Users\sa\N8N-projects`.
 
 ## Разрешённые project-specific skills
 
-- `.cursor/skills/phase-b-process/SKILL.md` — единственный путь для Phase B.
-- `.cursor/skills/memory-bank-init/SKILL.md`
-- `.cursor/skills/workspace-activity-report/SKILL.md`
-- `.cursor/skills/mas-clean-start/SKILL.md`
-- `.cursor/skills/start-multi-agent-run/SKILL.md`
+- `.cursor/skills/user-mas-phase-b-process/SKILL.md` — единственный путь для Phase B.
+- `.cursor/skills/user-mb-init/SKILL.md`
+- `.cursor/skills/user-mb-activity-report/SKILL.md`
+- `.cursor/skills/user-mas-clean-start/SKILL.md`
+- `.cursor/skills/user-mas-start-run/SKILL.md`
 
 ## Жёсткое правило для Phase B
 

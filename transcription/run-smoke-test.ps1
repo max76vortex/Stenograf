@@ -33,4 +33,7 @@ Write-Host "`n--- transcribe_to_obsidian.py --help ---"
 Write-Host "`n--- check_coverage.py --help ---"
 & $venvPython (Join-Path $here "check_coverage.py") --help
 
+Write-Host "`n--- unittest discover transcription/tests ---"
+& $venvPython -m unittest discover -s (Join-Path $here "tests") -p "test_*.py"
+
 Write-Host "`n[OK] Smoke test finished (no transcription run; model not downloaded until first real transcribe)."

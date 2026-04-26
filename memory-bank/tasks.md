@@ -5,7 +5,7 @@
 ## Current Task
 - Status: BUILD
 - Complexity: 3
-- Description: Продолжаем roadmap WS-012 → WS-010 → WS-019. Выполнены пункты 1 и 2 (ревизия качества + каноническая инструкция Phase B в Obsidian). Следующий — пункт 3 (навигация по 10_processed).
+- Description: WS-025/WS-026: по решению пользователя остаёмся с Nexara как текущим кандидатом, продолжаем measured validation до финального operational вердикта; WS-010 остаётся на паузе.
 
 ---
 
@@ -78,10 +78,19 @@
 - Описаны все категории (`ideas`, `articles`, `projects`, `junk`, `unclear`), правила переноса из `00_inbox`, frontmatter, рекомендации.
 - Критерий выполнен: новый участник может открыть одну заметку и сразу понять структуру и процесс.
 
-**4. Style examples (WS-012)**
-- Собрать 8–10 лучших примеров в `transcription/style/examples/`.
-- Обновить `style_profile.md` и `editing_checklist.md`.
-- Критерий: LLM в `phase-b-process` стабильно использует эти примеры.
+**4. ASR benchmark gate (WS-025)** [IN PROGRESS]
+- Выполнен benchmark-контур по протоколу `memory-bank/creative/creative-asr-russian-benchmark-protocol.md`.
+- Сформированы `transcription/asr-benchmark/results.csv` и `transcription/asr-benchmark/decision.md`.
+- Зафиксированы primary + fallback + fallback-trigger rules; обновлён operational flow в `transcription/README.md`.
+- Примечание: GigaAM-v3 отклонён для operational primary/fallback (не прошёл gate на noisy кейсах). Переход к следующему кандидату — WS-026.
+
+**4.1 Следующий кандидат после GigaAM (WS-026)**
+- Выбрать и прогнать следующий non-Whisper кандидат по протоколу WS-025.
+- Добавить реальные строки в `transcription/asr-benchmark/results.csv`.
+- Обновить `decision.md` и зафиксировать pass/fail.
+- Критерий: есть измеренный вердикт по новому кандидату, без simulated-строк.
+- Текущий прогресс: по решению пользователя остаёмся на Nexara как рабочем кандидате; есть реальные прогоны (`ru-gs-11/12/13`, `ru-gs-14`, `ru-gs-15`), включая длинный успешный run и один `402 insufficient balance`.
+- Следующий шаг: завершить ещё один репрезентативный длинный measured run после восстановления баланса и обновить финальный pass/fail по Nexara.
 
 **5. Массовый прогон Phase A (WS-010)**
 - Выполнить Sprint B: полный прогон архива через батч-диспетчер.
@@ -93,7 +102,12 @@
 - Обновить preflight и контекст.
 - Критерий: `WS-019` Done, `activeContext.md` и `tasks.md` отражают новое состояние.
 
-**Порядок выполнения:** 1 (выполнен) → **2. Каноническая инструкция Phase B в Obsidian (сейчас в работе)** → 3 → 4 → 5 → 6.
+**7. Style examples (WS-012)** *(перенесён в конец очереди)*
+- Собрать 8–10 лучших примеров в `transcription/style/examples/`.
+- Обновить `style_profile.md` и `editing_checklist.md`.
+- Критерий: LLM в `phase-b-process` стабильно использует эти примеры.
+
+**Порядок выполнения:** 1 (done) → 2 (done) → 3 (done) → 4 (gate) → 5 → 6 → 7.
 
 После выполнения пунктов 1-4 можно считать **Phase B закрытой как рабочий стандарт**.
 

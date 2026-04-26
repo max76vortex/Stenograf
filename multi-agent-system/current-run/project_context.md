@@ -48,3 +48,13 @@
 ## Правило slug для будущих прогонов MAS
 
 Для новых чистых стартов **`MasProjectId`** выбирается по смыслу задачи (kebab-case), например `audio-transcription-v1`, `ghost-sync-v2`; не использовать произвольные бессмысленные строки.
+
+## Delta execution mode (2026-04-26)
+
+- Оркестрация выполняется поверх текущего run `audio-transcription-v1` (без `mas-new-run`).
+- Потоки разделены:
+  - **Core/MAS Delivery (Worktree 1):** основной delivery в этом контуре.
+  - **ASR R&D (Worktree 2):** отдельный параллельный контур с benchmark-валидацией ASR.
+- Контракт между потоками:
+  - Worktree 2 поставляет измеренные результаты и decision package.
+  - Worktree 1 принимает изменения ASR только через зафиксированный интерфейс и обновлённый benchmark decision.

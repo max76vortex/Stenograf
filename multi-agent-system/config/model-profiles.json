@@ -1,0 +1,27 @@
+{
+  "defaultProfile": "default-quality",
+  "profiles": {
+    "default-quality": {
+      "orchestrator": "gpt-5.5-medium",
+      "analyst": "gemini-3.1-pro",
+      "tz_reviewer": "grok-4-20-thinking",
+      "architect": "gpt-5.5-medium",
+      "architecture_reviewer": "grok-4-20-thinking",
+      "planner": "gemini-3.1-pro",
+      "plan_reviewer": "gpt-5.5-medium",
+      "developer": "gpt-5.3-codex",
+      "code_reviewer": "gpt-5.3-codex"
+    },
+    "default-economy": {
+      "orchestrator": "gpt-5.5-medium",
+      "analyst": "composer-2-fast",
+      "tz_reviewer": "gpt-5.3-codex",
+      "architect": "gpt-5.3-codex",
+      "architecture_reviewer": "gpt-5.3-codex",
+      "planner": "composer-2-fast",
+      "plan_reviewer": "gpt-5.3-codex",
+      "developer": "gpt-5.3-codex",
+      "code_reviewer": "gpt-5.3-codex"
+    }
+  }
+}

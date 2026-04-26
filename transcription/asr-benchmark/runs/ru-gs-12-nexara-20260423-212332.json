@@ -1,0 +1,35 @@
+{
+  "task": "transcribe",
+  "language": "ru",
+  "duration": 12.120813,
+  "text": " так значит",
+  "segments": [
+    {
+      "id": 0,
+      "seek": 0,
+      "start": 0.0,
+      "end": 12.1208125,
+      "text": " так значит",
+      "tokens": [
+        2936,
+        24013
+      ],
+      "temperature": 0.0,
+      "avg_logprob": 0.0,
+      "compression_ratio": 0.46511627906976744,
+      "no_speech_prob": 0.0
+    }
+  ],
+  "_meta": {
+    "run_id": "ru-gs-12-nexara-20260423-212332",
+    "file_id": "ru-gs-12",
+    "noise": "high",
+    "engine": "nexara-transcriptions",
+    "audio_path": "D:\\1 ЗАПИСИ ГОЛОС\\audio-work\\2020-08\\2020-08-11_000_2020_08_11_18_00_20__src-20200811\\2020_08_11_18_00_20_asr.wav",
+    "endpoint": "https://api.nexara.ru/api/v1/audio/transcriptions",
+    "http_status": 200,
+    "elapsed_sec": 12.269,
+    "created_at": "2026-04-23T21:23:44",
+    "response_content_type": "application/json"
+  }
+}

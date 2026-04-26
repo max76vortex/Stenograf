@@ -5,23 +5,8 @@
 """
 from pathlib import Path
 import argparse
-import re
 
-
-def slug(s: str) -> str:
-    """Должен совпадать с transcribe_to_obsidian.slug."""
-    s = s.strip()
-    s = re.sub(r"[^\w\s\-]", "", s, flags=re.UNICODE)
-    s = re.sub(r"[-\s]+", "-", s).strip("-") or "transcript"
-    return s[:120]
-
-
-def expected_md_name(mp3: Path, recordings_root: Path, recursive: bool) -> str:
-    if recursive:
-        rel = mp3.relative_to(recordings_root)
-        stem = rel.with_suffix("").as_posix().replace("/", "_")
-        return slug(stem) + ".md"
-    return slug(mp3.stem) + ".md"
+from naming import get_expected_md_name
 
 
 def main() -> None:
@@ -53,7 +38,7 @@ def main() -> None:
     inbox_mds = {p.name for p in inbox.glob("*.md")}
     missing = []
     for p in mp3_files:
-        name = expected_md_name(p, rec, args.recursive)
+        name = get_expected_md_name(p, rec, args.recursive)
         if name not in inbox_mds:
             missing.append((p, name))
 

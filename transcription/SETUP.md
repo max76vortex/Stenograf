@@ -2,6 +2,10 @@
 
 Пошагово: что установить, где что лежит, как связать папку записей, скрипт и vault Obsidian.
 
+Core v1.2-delta production/default ASR provider — локальный **`faster-whisper-local`**.
+Внешние/API providers и quota-профили не являются default и требуют свежего
+approved decision package для точного provider/profile перед включением в Core.
+
 ---
 
 ## 1. Что где лежит (схема)
@@ -37,7 +41,7 @@ faster-whisper на GPU (через **ctranslate2**) ищет библиотек
 
 1. Установлен актуальный **драйвер NVIDIA** (см. п. 2.2).
 2. В venv выполнен `pip install -r requirements.txt` — для Windows подтягивается пакет **`nvidia-cublas-cu12`** (cuBLAS для CUDA 12 в `site-packages`).
-3. Скрипт **`transcribe_to_obsidian.py`** сам добавляет `…\site-packages\nvidia\cublas\bin` в `PATH` перед загрузкой модели, чтобы DLL находились без ручной настройки.
+3. Локальный provider **`faster-whisper-local`** сам добавляет `…\site-packages\nvidia\cublas\bin` в `PATH` перед загрузкой модели, чтобы DLL находились без ручной настройки.
 
 Если при `--device cuda` всё же ошибка про отсутствующий `cublas64_12.dll` — проверь, что пакет установлен:  
 `pip show nvidia-cublas-cu12`.
@@ -55,7 +59,7 @@ faster-whisper на GPU (через **ctranslate2**) ищет библиотек
 
 ### 2.5. Ничего больше ставить не нужно
 
-Модель large-v3 скрипт скачает сам при первом запуске (несколько ГБ). Логика «скачать/подключить» встроена в библиотеку faster-whisper.
+Модель `large-v3` скрипт скачает сам при первом запуске (несколько ГБ; нужен свободный диск под модельный кэш). Логика «скачать/подключить» встроена в библиотеку faster-whisper.
 
 ---
 
@@ -134,7 +138,7 @@ D:\1 ЗАПИСИ ГОЛОС\recordings\
    pip install -r requirements.txt
    ```
 
-   Установится faster-whisper (и при необходимости зависимости для CUDA). При первом запуске скрипта дополнительно скачается модель large-v3 — это нормально.
+   Установится faster-whisper (и при необходимости зависимости для CUDA). При первом запуске скрипта дополнительно скачается модель `large-v3` — это ожидаемое поведение.
 
 ---
 
@@ -167,7 +171,9 @@ python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\O
 python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings\2024-03" "D:\Obsidian\Audio Brain\00_inbox" --manifest "D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv"
 ```
 
-В `D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv` будет дописываться лог: когда какой файл обработан, какое имя .md, какая дата во frontmatter.
+В `D:\1 ЗАПИСИ ГОЛОС\recordings\manifest.csv` будет дописываться лог: когда какой файл обработан, какое имя .md, какая дата во frontmatter. Новые манифесты также фиксируют ASR provider/model/status, категорию ошибки (`error_category`) и длительность обработки файла (`elapsed_sec`).
+
+Если один файл в batch упал на ASR, скрипт продолжит следующие файлы, но в конце завершится с кодом `1`. Для failed-файла не создаётся успешный transcript; в asset-режиме статус ошибки (`asr_status=failed`) записывается в `meta.json`, а исходник остаётся в папке записей, чтобы повторный запуск той же команды мог попробовать файл снова.
 
 ### Вариант 4: без GPU (только CPU)
 
@@ -267,7 +273,7 @@ pause
 
 В `N8N-projects` Phase B зафиксирована как единый путь:
 
-- skill: `.cursor/skills/phase-b-process/SKILL.md`
+- skill: `.cursor/skills/user-mas-phase-b-process/SKILL.md`
 - модель: `kimi-k2.5`
 - backend в `meta.json`: `cursor`
 
@@ -275,7 +281,7 @@ pause
 
 ---
 
-## 12. Автобатчинг под лимиты бесплатной транскрибации
+## 12. Автобатчинг под лимиты бесплатной транскрибации (R&D/опционально)
 
 Для Phase A добавлен диспетчер очереди:
 
@@ -287,6 +293,10 @@ python transcription_limit_dispatcher.py --help
 - режет входные файлы на партии под лимиты;
 - после исчерпания лимита ждёт следующее окно;
 - сразу отправляет следующую партию, когда лимит открывается.
+
+Этот раздел не переключает основной Core v1.2 путь: локальный
+`faster-whisper-local` остаётся default provider, а внешние/API providers не
+включаются в production/default без отдельного approved benchmark decision.
 
 Базовый профиль по умолчанию: **Groq Whisper Free**  
 (`20 RPM`, `2000 RPD`, `7200 audio sec/hour`, `28800 audio sec/day`, `max 25 MB`).

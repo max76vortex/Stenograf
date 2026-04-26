@@ -1,6 +1,8 @@
 # Транскрибация аудио → Obsidian
 
-Пайплайн на **faster-whisper** с моделью **large-v3** для максимального качества. Результат — `.md` с frontmatter под vault Audio Brain (папка `00_inbox`).
+Core v1.2-delta использует ASR provider abstraction. Текущий production/default provider — **`faster-whisper-local`** с моделью **large-v3** для локальной обработки. Результат — `.md` с frontmatter под vault Audio Brain (папка `00_inbox`).
+
+Cloud/API движки (`yandex-speechkit`, `deepgram-nova-2`, `nexara`) рассматриваются только как R&D/экспериментальные кандидаты до прохождения Benchmark Gate.
 
 **Полная установка на компьютере (что ставить, куда класть, как запускать):** см. **[SETUP.md](SETUP.md)**.
 
@@ -13,6 +15,14 @@ pwsh -File .\run-smoke-test.ps1
 ```
 
 Создаёт `.venv` при необходимости, ставит зависимости, вызывает `--help` у основного скрипта и `check_coverage.py` (модель Whisper при этом не качается).
+
+### Запуск тестов
+
+Из папки `transcription`:
+
+```powershell
+python -m unittest discover -s .\tests -p "test_*.py"
+```
 
 ### Окно вместо терминала (опционально)
 
@@ -145,15 +155,35 @@ python transcribe_to_obsidian.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\O
 - `input_dir` — каталог с `.mp3` (или корень при `--recursive`).
 - `output_dir` — каталог для `.md` (например `D:\Obsidian\Audio Brain\00_inbox`).
 - `--recursive` — обходить все подпапки; имена .md включают путь (напр. `2024-01_2024-01-15_001.md`), чтобы не было коллизий.
-- `--manifest FILE` — дописывать в CSV лог: timestamp, путь к mp3, имя .md, дата из frontmatter.
+- `--manifest FILE` — дописывать в CSV лог: timestamp, путь к mp3, имя .md, дата из frontmatter; новые манифесты также содержат `asr_provider`, `asr_model`, `asr_status`, `asr_error_category`, `asr_error_message`, `error_category`, `elapsed_sec`.
 - `--sleep-between-seconds SEC` — пауза после каждого **успешно** обработанного файла (0 по умолчанию); помогает разгрузить GPU/диск при длинных ночных прогонах.
 - `--model`, `--device`, `--compute-type`, `--language` — как раньше.
 - `--overwrite` — перезаписывать существующие .md.
 - `--asset-root DIR` — включает asset-режим: создаёт asset-папки (`YYYY-MM-DD_NNN_slug__src-YYYYMMDD`), пишет `01_transcript__inbox.md` и `meta.json`.
-- `--move-source` / `--copy-source` — в asset-режиме переместить (default) или копировать исходник в asset-папку.
+- `--move-source` / `--copy-source` — в asset-режиме переместить (default) или копировать исходник в asset-папку. Default-перенос выполняется только после успешного ASR, чтобы failed-файл остался в исходной очереди для повторного запуска той же команды.
 - `--no-publish-inbox` — в asset-режиме не писать копию transcript в `output_dir`.
 
 Имя выходного `.md`: из имени mp3 (slug). При `--recursive` — из относительного пути (папка_имя), чтобы файлы из разных месяцев не перезаписывали друг друга.
+
+### Обработка ошибок в batch-прогоне (continue-on-error)
+
+Если ASR падает на одном файле, скрипт:
+
+- печатает `[FAILED]` с provider/model/category;
+- не создаёт успешный transcript для этого файла;
+- продолжает следующие файлы;
+- пишет `asr_status=failed` в manifest, а в asset-режиме также в `meta.json`;
+- завершает весь batch с кодом `1`, если была хотя бы одна ошибка.
+
+Для уже существующих legacy-манифестов со старым header (4/7 колонок) скрипт сохраняет header как есть и дописывает расширенные строки в append-only режиме. Если downstream-парсер читает только header-колонки, создайте новый manifest через `--manifest` или вручную обновите header до расширенного формата.
+
+Пустой результат распознавания сохраняет прежнюю совместимость: создаётся transcript с `(нет речи)` и `quality_flags: ["empty_output"]` в asset `meta.json`.
+
+Коды возврата:
+
+- `0` — batch завершён без ASR ошибок (включая кейс, когда все файлы были пропущены как уже обработанные);
+- `1` — в batch была хотя бы одна ASR ошибка;
+- `2` — ошибка аргументов CLI (поведение `argparse`).
 
 ## Проверка покрытия (какие mp3 ещё без .md)
 
@@ -171,11 +201,44 @@ python check_coverage.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\
 
 ---
 
+## ASR benchmark gate (WS-025)
+
+Текущий quality-gated benchmark для RU-речи зафиксирован в:
+
+- `transcription/asr-benchmark/README.md` — краткий контракт Benchmark Gate для Worktree 1/2
+- `transcription/asr-benchmark/CORE_GATE.md` — Core gate: когда можно менять ASR provider/default
+- `multi-agent-system/current-run/worktree_handoff.md` — handoff-контракт Worktree 2 -> Worktree 1 для текущего MAS run
+- `transcription/asr-benchmark/results.csv`
+- `transcription/asr-benchmark/decision.md`
+
+Канонический operational flow для Core v1.2:
+
+1. Production/default provider остаётся локальным `faster-whisper-local`.
+2. `yandex-speechkit` + `deepgram-nova-2` — experimental legacy simulated/R&D context из прошлой версии benchmark, не production/default Core v1.2.
+3. `nexara` — experimental R&D-кандидат Worktree 2, пока provisional/in-progress; GigaAM-v3 отклонён как operational primary/fallback по quality gate.
+4. Любой внешний/API provider можно включать в Core default только после свежего approved decision package для точного provider/profile.
+
+Если decision package отсутствует, устарел, содержит simulated-only/provisional/blocked строки или не утверждает конкретный provider/profile, Core продолжает использовать `faster-whisper-local`.
+
+Дополнительно для локального RU-R&D:
+
+- `transcription/asr-benchmark/GIGAAM-RUNBOOK.md`
+- `transcription/asr-benchmark/run_gigaam_smoke.py`
+- `transcription/asr-benchmark/run_gigaam_chunked.py`
+
+Примечание по GigaAM-v3:
+
+- без `HF_TOKEN` длинные файлы можно прогонять через chunking (например 10s сегменты),
+- но результат всё равно обязан пройти тот же quality gate (loops/coherence/post-edit),
+- текущий smoke показывает, что модель перспективная, но ещё требует донастройки окружения/режима.
+
+---
+
 ## Фаза B (основной и единственный путь в проекте)
 
 Phase B выполняется только через skill:
 
-- `.cursor/skills/phase-b-process/SKILL.md`
+- `.cursor/skills/user-mas-phase-b-process/SKILL.md`
 - модель: **Kimi** (`kimi-k2.5`)
 - backend в `meta.json`: `llm_backend: cursor`
 
@@ -197,7 +260,7 @@ Phase B выполняется только через skill:
 - `phase_b_processor.py` оставлен только для архива и совместимости, но не является рабочим путём.
 - после классификации запись из `00_inbox` раскладывается в `10_processed/<category>` по правилам skill.
 
-## Батчинг под бесплатные лимиты транскрибации (Phase A)
+## Батчинг под бесплатные лимиты транскрибации (R&D/эксперимент)
 
 Для планового распознавания по квотам используй:
 
@@ -206,6 +269,11 @@ python transcription_limit_dispatcher.py --help
 ```
 
 Подробно про лимиты и откуда цифры: **[FREE_LIMITS.md](FREE_LIMITS.md)**.
+
+Этот раздел не меняет Core v1.2 default: основной production-путь остаётся локальным
+`faster-whisper-local`. Любой внешний/API provider или quota-profile можно включать
+в Core default только после свежего approved decision package для точного
+provider/profile.
 
 Скрипт:
 - берёт очередь из `recordings/`;

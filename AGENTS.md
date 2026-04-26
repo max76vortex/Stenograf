@@ -58,15 +58,15 @@ Key commands (see `transcription/README.md` for full usage):
 **Caveats:**
 - Phase A (`transcribe_to_obsidian.py`) requires `faster-whisper` and downloads the large-v3 model (~3 GB) on first real run. The `--help` flag does not trigger the download.
 - Phase A requires a GPU with 6+ GB VRAM for `--device cuda`; use `--device cpu` in environments without a GPU (much slower).
-- Phase B in this repo is fixed to the local skill `.cursor/skills/phase-b-process/SKILL.md` and should not fall back to Ollama/LM Studio scripts.
+- Phase B in this repo is fixed to the local skill `.cursor/skills/user-mas-phase-b-process/SKILL.md` and should not fall back to Ollama/LM Studio scripts.
 
 ### Project-bound skills
 
 - Skills in `.cursor/skills/` are scoped to this repository (`C:\Users\sa\N8N-projects`) and should not be reused in other projects by default.
 - Current transcription skills:
-  - `.cursor/skills/phase-b-process/SKILL.md` — **the only allowed Phase B path** (model: Kimi).
-  - `.cursor/skills/memory-bank-init/SKILL.md` — memory-bank bootstrap/update helper.
-  - `.cursor/skills/workspace-activity-report/SKILL.md` — activity reporting for this workspace.
+  - `.cursor/skills/user-mas-phase-b-process/SKILL.md` — **the only allowed Phase B path** (model: Kimi).
+  - `.cursor/skills/user-mb-init/SKILL.md` — memory-bank bootstrap/update helper.
+  - `.cursor/skills/user-mb-activity-report/SKILL.md` — activity reporting for this workspace.
 
 ### No linting or automated tests
 

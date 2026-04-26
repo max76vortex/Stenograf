@@ -1,0 +1,55 @@
+{
+  "task": "transcribe",
+  "language": "ru",
+  "duration": 19.409,
+  "text": " Так, обзор композита Артура и Анны. Сразу дам небольшую...",
+  "segments": [
+    {
+      "id": 0,
+      "seek": 0,
+      "start": 0.0,
+      "end": 19.409,
+      "text": " Так, обзор композита Артура и Анны. Сразу дам небольшую...",
+      "tokens": [
+        8770,
+        11,
+        3348,
+        1544,
+        1717,
+        14380,
+        3434,
+        30816,
+        32091,
+        13549,
+        3580,
+        1006,
+        20802,
+        1834,
+        13,
+        2933,
+        19365,
+        1070,
+        1685,
+        32692,
+        3924,
+        485
+      ],
+      "temperature": 0.0,
+      "avg_logprob": 0.0,
+      "compression_ratio": 1.0,
+      "no_speech_prob": 0.0
+    }
+  ],
+  "_meta": {
+    "run_id": "ru-gs-13-nexara-20260423-212345",
+    "file_id": "ru-gs-13",
+    "noise": "high",
+    "engine": "nexara-transcriptions",
+    "audio_path": "D:\\1 ЗАПИСИ ГОЛОС\\audio-work\\2020-08\\2020-08-18_000_2020_08_18_19_57_06__src-20200818\\2020_08_18_19_57_06_asr.wav",
+    "endpoint": "https://api.nexara.ru/api/v1/audio/transcriptions",
+    "http_status": 200,
+    "elapsed_sec": 1.218,
+    "created_at": "2026-04-23T21:23:46",
+    "response_content_type": "application/json"
+  }
+}

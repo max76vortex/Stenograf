@@ -78,7 +78,7 @@ pwsh -NoLogo -File "multi-agent-system/tools/dryrun-status.ps1" -Top 10
 Перед запуском оркестратора (проверка `pwsh`, Cursor CLI, обязательных файлов):
 
 ```powershell
-pwsh -NoLogo -File "multi-agent-system/tools/orchestrator-preflight.ps1"
+pwsh -NoLogo -File "multi-agent-system/tools/orchestrator-preflight.ps1" -AgentBackend "cursor"
 ```
 
 ### Чистый старт для нового прогона (новый `MAS Project ID`)
@@ -89,17 +89,36 @@ pwsh -NoLogo -File "multi-agent-system/tools/orchestrator-preflight.ps1"
 pwsh -NoLogo -File "multi-agent-system/tools/mas-new-run.ps1" -MasProjectId "your-new-slug"
 ```
 
-Скрипт по умолчанию делает снимок `current-run/` в `archive/mas-snapshots/`, затем очищает артефакты и пишет заготовки. Подробности: скилл **mas-clean-start** (`.cursor/skills/mas-clean-start/SKILL.md`). Просмотр без изменений: добавьте `-WhatIf -Force`.
+Скрипт по умолчанию делает снимок `current-run/` в `archive/mas-snapshots/`, затем очищает артефакты и пишет заготовки. Подробности: скилл **mas-clean-start** (`.cursor/skills/user-mas-clean-start/SKILL.md`). Просмотр без изменений: добавьте `-WhatIf -Force`.
 
 Подробности по интерпретации отчета: `multi-agent-system/runbooks/status-surface-runbook.md`.
 
 Запуск оркестратора (из корня workspace; по умолчанию читаются `current-run/task_brief.md` и `current-run/project_context.md`):
 
 ```powershell
-.\multi-agent-system\start-orchestrator.ps1 -Model "auto"
+.\multi-agent-system\start-orchestrator.ps1 -AgentBackend "cursor" -Model "auto"
 ```
 
 Другие файлы постановки/контекста — параметры `-TaskFile` и `-ProjectContextFile`. Пример в `examples/sample-task-brief.md` — только шаблон для копирования в `current-run/task_brief.md`.
+
+## Автономный запуск по профилю моделей
+
+Новый run без ручного выбора модели для каждой роли:
+
+```powershell
+pwsh -NoLogo -File "multi-agent-system/start-autonomous-orchestrator.ps1" `
+  -AgentBackend "cursor" `
+  -ModelProfile "default-quality"
+```
+
+Профили хранятся в:
+- `multi-agent-system/config/model-profiles.json`
+
+Доступные backend-режимы:
+- `cursor` (agent/cursor-agent)
+- `ollama` (локальный ollama CLI)
+- `openai` (требуется `OPENAI_API_KEY`)
+- `lmstudio` (локальный endpoint `http://127.0.0.1:1234`)
 
 ## Команды запуска
 

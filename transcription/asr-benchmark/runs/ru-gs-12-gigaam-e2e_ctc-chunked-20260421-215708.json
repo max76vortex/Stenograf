@@ -1,0 +1,20 @@
+{
+  "run_id": "ru-gs-12-gigaam-e2e_ctc-chunked-20260421-215708",
+  "file_id": "ru-gs-12",
+  "noise": "high",
+  "engine": "gigaam-v3-e2e_ctc",
+  "mode": "chunked",
+  "segment_sec": 6,
+  "segments_total": 3,
+  "segments_nonempty": 2,
+  "segments_after_dedupe": 1,
+  "dedupe_enabled": true,
+  "dedupe_min_words": 4,
+  "audio_path": "D:\\1 ЗАПИСИ ГОЛОС\\audio-work\\2020-08\\2020-08-11_000_2020_08_11_18_00_20__src-20200811\\2020_08_11_18_00_20_asr.wav",
+  "model_id": "ai-sage/GigaAM-v3",
+  "revision": "e2e_ctc",
+  "model_load_sec": 3.653,
+  "transcribe_sec": 3.999,
+  "transcript_chars": 12,
+  "created_at": "2026-04-21T21:57:15"
+}
