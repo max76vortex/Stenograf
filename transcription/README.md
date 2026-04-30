@@ -1,8 +1,12 @@
 # Транскрибация аудио → Obsidian
 
-Core v1.2-delta использует ASR provider abstraction. Текущий production/default provider — **`faster-whisper-local`** с моделью **large-v3** для локальной обработки. Результат — `.md` с frontmatter под vault Audio Brain (папка `00_inbox`).
+Ключевая система распознавания в текущем operational-контуре: **`speech2text-transcriptions`**.
 
-Cloud/API движки (`yandex-speechkit`, `deepgram-nova-2`, `nexara`) рассматриваются только как R&D/экспериментальные кандидаты до прохождения Benchmark Gate.
+Core v1.2-delta сохраняет ASR provider abstraction и локальный `faster-whisper-local` как contingency/baseline.
+
+История сравнения альтернативных ASR-кандидатов вынесена в архив:
+
+- `transcription/asr-benchmark/archive/ASR_EVALUATION_ARCHIVE_2026-04.md`
 
 **Полная установка на компьютере (что ставить, куда класть, как запускать):** см. **[SETUP.md](SETUP.md)**.
 
@@ -213,10 +217,10 @@ python check_coverage.py "D:\1 ЗАПИСИ ГОЛОС\recordings" "D:\Obsidian\
 
 Канонический operational flow для Core v1.2:
 
-1. Production/default provider остаётся локальным `faster-whisper-local`.
-2. `yandex-speechkit` + `deepgram-nova-2` — experimental legacy simulated/R&D context из прошлой версии benchmark, не production/default Core v1.2.
-3. `nexara` — experimental R&D-кандидат Worktree 2, пока provisional/in-progress; GigaAM-v3 отклонён как operational primary/fallback по quality gate.
-4. Любой внешний/API provider можно включать в Core default только после свежего approved decision package для точного provider/profile.
+1. Active ASR API path: `speech2text-transcriptions` (принятый operational decision).
+2. Локальный `faster-whisper-local` используется как fallback/contingency baseline.
+3. Исторические альтернативы (`nexara`, `gigaam-v3`, legacy simulated cloud) не являются текущим operational default.
+4. Любой новый provider включается только после свежего approved decision package.
 
 Если decision package отсутствует, устарел, содержит simulated-only/provisional/blocked строки или не утверждает конкретный provider/profile, Core продолжает использовать `faster-whisper-local`.
 

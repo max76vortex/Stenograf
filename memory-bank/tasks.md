@@ -5,7 +5,7 @@
 ## Current Task
 - Status: BUILD
 - Complexity: 3
-- Description: WS-025/WS-026: по решению пользователя остаёмся с Nexara как текущим кандидатом, продолжаем measured validation до финального operational вердикта; WS-010 остаётся на паузе.
+- Description: ASR-gate закрыт: по решению пользователя принят `Speech2Text` как рабочая система распознавания. Дальше продолжаем roadmap по WS-010 -> WS-019 -> WS-012 (style examples).
 
 ---
 
@@ -78,19 +78,15 @@
 - Описаны все категории (`ideas`, `articles`, `projects`, `junk`, `unclear`), правила переноса из `00_inbox`, frontmatter, рекомендации.
 - Критерий выполнен: новый участник может открыть одну заметку и сразу понять структуру и процесс.
 
-**4. ASR benchmark gate (WS-025)** [IN PROGRESS]
+**4. ASR benchmark gate (WS-025)** [DONE]
 - Выполнен benchmark-контур по протоколу `memory-bank/creative/creative-asr-russian-benchmark-protocol.md`.
 - Сформированы `transcription/asr-benchmark/results.csv` и `transcription/asr-benchmark/decision.md`.
-- Зафиксированы primary + fallback + fallback-trigger rules; обновлён operational flow в `transcription/README.md`.
-- Примечание: GigaAM-v3 отклонён для operational primary/fallback (не прошёл gate на noisy кейсах). Переход к следующему кандидату — WS-026.
+- Зафиксирован operational выбор: `speech2text-transcriptions`.
+- История альтернативных кандидатов сохранена в архиве: `transcription/asr-benchmark/archive/ASR_EVALUATION_ARCHIVE_2026-04.md`.
 
-**4.1 Следующий кандидат после GigaAM (WS-026)**
-- Выбрать и прогнать следующий non-Whisper кандидат по протоколу WS-025.
-- Добавить реальные строки в `transcription/asr-benchmark/results.csv`.
-- Обновить `decision.md` и зафиксировать pass/fail.
-- Критерий: есть измеренный вердикт по новому кандидату, без simulated-строк.
-- Текущий прогресс: по решению пользователя остаёмся на Nexara как рабочем кандидате; есть реальные прогоны (`ru-gs-11/12/13`, `ru-gs-14`, `ru-gs-15`), включая длинный успешный run и один `402 insufficient balance`.
-- Следующий шаг: завершить ещё один репрезентативный длинный measured run после восстановления баланса и обновить финальный pass/fail по Nexara.
+**4.1 Следующий кандидат после GigaAM (WS-026)** [DONE]
+- WS-026 закрыт решением пользователя в пользу `Speech2Text`.
+- Детальная история Nexara/GigaAM сохранена в ASR-архиве.
 
 **5. Массовый прогон Phase A (WS-010)**
 - Выполнить Sprint B: полный прогон архива через батч-диспетчер.
@@ -107,7 +103,7 @@
 - Обновить `style_profile.md` и `editing_checklist.md`.
 - Критерий: LLM в `phase-b-process` стабильно использует эти примеры.
 
-**Порядок выполнения:** 1 (done) → 2 (done) → 3 (done) → 4 (gate) → 5 → 6 → 7.
+**Порядок выполнения:** 1 (done) → 2 (done) → 3 (done) → 4 (done) → 5 → 6 → 7.
 
 После выполнения пунктов 1-4 можно считать **Phase B закрытой как рабочий стандарт**.
 
