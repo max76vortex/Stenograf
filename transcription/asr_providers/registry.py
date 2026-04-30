@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from .base import AsrProvider
 from .faster_whisper_local import FasterWhisperLocalProvider
+from .speech2text_api import Speech2TextApiProvider
 
 
 DEFAULT_ASR_PROVIDER_ID = "faster-whisper-local"
-SUPPORTED_ASR_PROVIDER_IDS = {DEFAULT_ASR_PROVIDER_ID}
+SPEECH2TEXT_PROVIDER_ID = "speech2text-transcriptions"
+SUPPORTED_ASR_PROVIDER_IDS = {DEFAULT_ASR_PROVIDER_ID, SPEECH2TEXT_PROVIDER_ID}
 
 
 def get_provider(
@@ -17,6 +19,8 @@ def get_provider(
 ) -> AsrProvider:
     if provider_id == DEFAULT_ASR_PROVIDER_ID:
         return FasterWhisperLocalProvider(model=model, device=device, compute_type=compute_type)
+    if provider_id == SPEECH2TEXT_PROVIDER_ID:
+        return Speech2TextApiProvider(model=model, device=device, compute_type=compute_type)
     raise ValueError(
         f"Unsupported ASR provider: {provider_id}. "
         f"Supported: {', '.join(sorted(SUPPORTED_ASR_PROVIDER_IDS))}"

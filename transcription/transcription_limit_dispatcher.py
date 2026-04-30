@@ -107,9 +107,13 @@ def load_state(path: Path) -> dict:
             "day_started_at": utc_now_ts(),
             "day_requests_used": 0,
             "day_audio_seconds_used": 0.0,
+            "processed_sources": [],
             "last_updated_at": iso_now(),
         }
-    return json.loads(path.read_text(encoding="utf-8"))
+    state = json.loads(path.read_text(encoding="utf-8"))
+    if "processed_sources" not in state or not isinstance(state["processed_sources"], list):
+        state["processed_sources"] = []
+    return state
 
 
 def save_state(path: Path, state: dict) -> None:
@@ -144,6 +148,9 @@ def run_single_file_transcription(
     manifest: Path,
     asset_root: Path | None,
     overwrite: bool,
+    asr_provider: str,
+    model: str,
+    language: str,
 ) -> int:
     with tempfile.TemporaryDirectory(prefix="transcribe-batch-") as td:
         temp_dir = Path(td)
@@ -157,6 +164,12 @@ def run_single_file_transcription(
             str(script_dir / "transcribe_to_obsidian.py"),
             str(temp_dir),
             str(output_dir),
+            "--asr-provider",
+            asr_provider,
+            "--model",
+            model,
+            "--language",
+            language,
             "--manifest",
             str(manifest),
             "--ext",
@@ -188,6 +201,9 @@ def main() -> None:
     ap.add_argument("--audio-seconds-per-day", type=int, default=28800)
     ap.add_argument("--max-file-mb", type=int, default=25)
     ap.add_argument("--sleep-poll-seconds", type=int, default=10)
+    ap.add_argument("--asr-provider", default="speech2text-transcriptions")
+    ap.add_argument("--asr-model", default="whisper-1")
+    ap.add_argument("--asr-language", default="ru")
     args = ap.parse_args()
 
     input_dir = args.input_dir.resolve()
@@ -217,7 +233,9 @@ def main() -> None:
     while True:
         all_files = discover_audio(input_dir, recursive=args.recursive)
         done = load_processed_manifest(manifest)
-        pending = [p for p in all_files if str(p) not in done]
+        state = load_state(state_file)
+        processed_sources = set(str(Path(p)) for p in state.get("processed_sources", []))
+        pending = [p for p in all_files if str(p) not in done and str(p) not in processed_sources]
         if not pending:
             print("Queue empty: no pending files.")
             if not args.watch:
@@ -225,7 +243,6 @@ def main() -> None:
             time.sleep(max(5, args.sleep_poll_seconds))
             continue
 
-        state = load_state(state_file)
         now = utc_now_ts()
         roll_windows_if_needed(state, limits, now)
         cap = remaining_capacity(state, limits)
@@ -262,6 +279,9 @@ def main() -> None:
                 manifest=manifest,
                 asset_root=args.asset_root.resolve() if args.asset_root else None,
                 overwrite=args.overwrite,
+                asr_provider=args.asr_provider,
+                model=args.asr_model,
+                language=args.asr_language,
             )
 
             state["window_requests_used"] = int(state["window_requests_used"]) + 1
@@ -272,6 +292,10 @@ def main() -> None:
 
             if rc != 0:
                 raise SystemExit(f"Transcription failed for {src} (exit={rc})")
+
+            state["processed_sources"].append(str(src))
+            state["processed_sources"] = state["processed_sources"][-50000:]
+            save_state(state_file, state)
 
             processed_in_cycle += 1
             cap["window_audio_seconds"] -= audio_sec

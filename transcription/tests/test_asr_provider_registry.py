@@ -19,6 +19,7 @@ class AsrProviderRegistryTests(unittest.TestCase):
     def test_default_provider_is_allowlisted(self) -> None:
         self.assertEqual(DEFAULT_ASR_PROVIDER_ID, "faster-whisper-local")
         self.assertIn(DEFAULT_ASR_PROVIDER_ID, SUPPORTED_ASR_PROVIDER_IDS)
+        self.assertIn("speech2text-transcriptions", SUPPORTED_ASR_PROVIDER_IDS)
 
     def test_unsupported_provider_id_fails_explicitly(self) -> None:
         with self.assertRaises(ValueError) as exc_info:
@@ -32,6 +33,7 @@ class AsrProviderRegistryTests(unittest.TestCase):
         self.assertIn("Unsupported ASR provider", msg)
         self.assertIn("unsupported-provider", msg)
         self.assertIn("faster-whisper-local", msg)
+        self.assertIn("speech2text-transcriptions", msg)
 
 
 if __name__ == "__main__":

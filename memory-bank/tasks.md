@@ -22,7 +22,7 @@
 
 ### Plan / Checklist
 - [x] Спроектировать структуру Obsidian-vault и шаблоны (транскрипт, идеи, статья, проект).
-- [x] Выбрать инструмент транскрибации (faster-whisper large-v3, скрипт transcription/).
+- [x] Выбрать и зафиксировать рабочий инструмент транскрибации (`speech2text-transcriptions`).
 - [x] Спроектировать порядок и рабочий процесс: папка записей (recordings/YYYY-MM/), именование mp3 (creative-transcription-workflow.md).
 - [x] Реализовать в скрипте: `--recursive`, `--manifest`; `check_coverage.py`; README/SETUP.
 
@@ -70,7 +70,7 @@
 **2. Каноническая инструкция Phase B в Obsidian (WS-012)** [DONE]
 - Создана заметка `20_system/Инструкция — Фаза B (канонический процесс).md`.
 - Включены B1–B7 с обязательным human checkpoint, правила, ссылка на review-findings.
-- Убраны legacy-варианты.
+- Убраны предыдущие альтернативные варианты.
 - Критерий выполнен. Теперь есть одна единственная рабочая инструкция.
 
 **3. Навигация по `10_processed` (WS-012)** [DONE]
@@ -82,11 +82,9 @@
 - Выполнен benchmark-контур по протоколу `memory-bank/creative/creative-asr-russian-benchmark-protocol.md`.
 - Сформированы `transcription/asr-benchmark/results.csv` и `transcription/asr-benchmark/decision.md`.
 - Зафиксирован operational выбор: `speech2text-transcriptions`.
-- История альтернативных кандидатов сохранена в архиве: `transcription/asr-benchmark/archive/ASR_EVALUATION_ARCHIVE_2026-04.md`.
 
-**4.1 Следующий кандидат после GigaAM (WS-026)** [DONE]
+**4.1 Следующий кандидат (WS-026)** [DONE]
 - WS-026 закрыт решением пользователя в пользу `Speech2Text`.
-- Детальная история Nexara/GigaAM сохранена в ASR-архиве.
 
 **5. Массовый прогон Phase A (WS-010)**
 - Выполнить Sprint B: полный прогон архива через батч-диспетчер.
